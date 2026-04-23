@@ -506,7 +506,7 @@ export default function LandingPage({ onGetStarted }) {
           <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 26, height: 26, borderRadius: 6, objectFit: "cover" }} />
           <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: "-0.02em", color: C.textPri }}>OrgFlow</span>
         </div>
-        <p style={{ fontSize: 12, color: C.textDim, margin: 0 }}>© 2025 OrgFlow. Built for student organizations.</p>
+        <p style={{ fontSize: 12, color: C.textDim, margin: 0 }}>© 2026 OrgFlow. Designed for student orgs. Built by Ashvin Jayanthi & Nidhi Kiran.</p>
         <button
           onClick={onGetStarted}
           style={{

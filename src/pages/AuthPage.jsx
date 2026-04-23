@@ -347,7 +347,7 @@ export default function AuthPage({ onBack }) {
           ))}
         </div>
 
-        <p style={{ fontSize: 12, color: "#475569" }}>© 2025 OrgFlow. Built for student orgs.</p>
+        <p style={{ fontSize: 12, color: "#475569" }}>© 2026 OrgFlow. Designed for student orgs. Built by Ashvin Jayanthi & Nidhi Kiran.</p>
       </div>
 
       {/* ── Right form panel ── */}
