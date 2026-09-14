@@ -324,3 +324,158 @@ create index on public.checkin_sessions (event_id);
 create index on public.checkin_sessions (org_id);
 create index on public.notes (org_id);
 create index on public.manual_members (org_id);
+
+-- ══════════════════════════════════════════════════════════════════
+-- 5. GROUPS (migration — run this whole section against an existing DB)
+--
+-- Lets execs organize members into named groups (e.g. "Fall 2025") and
+-- scope a participation requirement to just one group. A member only
+-- sees a group-scoped requirement if they're in that group; execs see
+-- everything. Run this entire section once in the Supabase SQL Editor.
+-- ══════════════════════════════════════════════════════════════════
+
+create table public.groups (
+  id         uuid default gen_random_uuid() primary key,
+  org_id     uuid references public.orgs on delete cascade not null,
+  name       text not null,
+  created_at timestamptz default now() not null
+);
+
+-- member_id points at either profiles.id (member_type = 'real') or
+-- manual_members.id (member_type = 'manual') — no FK since it can
+-- reference either table, same pattern manual_members already uses.
+create table public.group_members (
+  id          uuid default gen_random_uuid() primary key,
+  group_id    uuid references public.groups on delete cascade not null,
+  member_id   uuid not null,
+  member_type text not null check (member_type in ('real', 'manual')),
+  created_at  timestamptz default now() not null,
+  unique (group_id, member_id)
+);
+
+alter table public.groups        enable row level security;
+alter table public.group_members enable row level security;
+
+-- groups: execs in the org see every group; a member only sees a group
+-- they're actually in (so they can show its name next to a requirement).
+create policy "groups_select" on public.groups
+  for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = groups.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or exists (
+      select 1 from public.group_members
+      where group_members.group_id = groups.id
+        and group_members.member_id = auth.uid()
+    )
+  );
+
+create policy "groups_insert" on public.groups
+  for insert to authenticated
+  with check (exists (
+    select 1 from public.org_members
+    where org_members.org_id = groups.org_id
+      and org_members.user_id = auth.uid()
+      and org_members.user_type = 'exec'
+  ));
+
+create policy "groups_update" on public.groups
+  for update to authenticated
+  using (exists (
+    select 1 from public.org_members
+    where org_members.org_id = groups.org_id
+      and org_members.user_id = auth.uid()
+      and org_members.user_type = 'exec'
+  ));
+
+create policy "groups_delete" on public.groups
+  for delete to authenticated
+  using (exists (
+    select 1 from public.org_members
+    where org_members.org_id = groups.org_id
+      and org_members.user_id = auth.uid()
+      and org_members.user_type = 'exec'
+  ));
+
+-- group_members: execs manage all rows; a real member can read their
+-- own membership rows (needed to know which groups they're in).
+create policy "group_members_select" on public.group_members
+  for select to authenticated
+  using (
+    member_id = auth.uid()
+    or exists (
+      select 1 from public.groups
+      join public.org_members on org_members.org_id = groups.org_id
+      where groups.id = group_members.group_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+  );
+
+create policy "group_members_insert" on public.group_members
+  for insert to authenticated
+  with check (exists (
+    select 1 from public.groups
+    join public.org_members on org_members.org_id = groups.org_id
+    where groups.id = group_members.group_id
+      and org_members.user_id = auth.uid()
+      and org_members.user_type = 'exec'
+  ));
+
+create policy "group_members_delete" on public.group_members
+  for delete to authenticated
+  using (exists (
+    select 1 from public.groups
+    join public.org_members on org_members.org_id = groups.org_id
+    where groups.id = group_members.group_id
+      and org_members.user_id = auth.uid()
+      and org_members.user_type = 'exec'
+  ));
+
+create index on public.groups (org_id);
+create index on public.group_members (group_id);
+create index on public.group_members (member_id);
+
+-- Requirements can now optionally be scoped to one group. Null group_id
+-- keeps today's behavior (visible to the whole org). If the group is
+-- later deleted, the requirement just reverts to org-wide (set null,
+-- not cascaded — the requirement itself isn't destroyed).
+alter table public.participation_requirements
+  add column if not exists group_id uuid references public.groups on delete set null;
+
+create index on public.participation_requirements (group_id);
+
+-- Replace whatever SELECT policy participation_requirements currently
+-- has (its name isn't tracked in this file) so group-scoped rows are
+-- actually hidden from non-members instead of just being additive.
+do $$
+declare pol record;
+begin
+  for pol in
+    select policyname from pg_policies
+    where schemaname = 'public' and tablename = 'participation_requirements' and cmd = 'SELECT'
+  loop
+    execute format('drop policy %I on public.participation_requirements', pol.policyname);
+  end loop;
+end $$;
+
+create policy "participation_requirements_select" on public.participation_requirements
+  for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = participation_requirements.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or group_id is null
+    or exists (
+      select 1 from public.group_members
+      where group_members.group_id = participation_requirements.group_id
+        and group_members.member_id = auth.uid()
+    )
+  );

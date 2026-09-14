@@ -672,6 +672,11 @@ function MemberDashboard({ orgEntry, user }) {
                           {req.category}
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{req.name}</span>
+                        {req.group_name && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", background: "#eef2ff", padding: "2px 7px", borderRadius: 20 }}>
+                            ◆ {req.group_name}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {daysLeft !== null && (

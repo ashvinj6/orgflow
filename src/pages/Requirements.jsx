@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useRequirements } from "../context/RequirementsContext";
 import { useEvents } from "../context/EventsContext";
 import { useMembers } from "../context/MembersContext";
-import { Card, Button, Modal, FormField, Input } from "../components/UI";
+import { useGroups } from "../context/GroupsContext";
+import { Card, Button, Modal, FormField, Input, Select } from "../components/UI";
 
 const CATEGORY_SUGGESTIONS = [
   "Social", "Professional", "Academic", "Community Service", "Leadership", "General",
@@ -43,12 +44,13 @@ function DeadlineChip({ deadline }) {
 }
 
 // ── Add / Edit modal ──────────────────────────────────────────────
-function RequirementModal({ initial, onSave, onClose }) {
+function RequirementModal({ initial, groups, onSave, onClose }) {
   const [name, setName]     = useState(initial?.name ?? "");
   const [category, setCat]  = useState(initial?.category ?? "");
   const [unit, setUnit]     = useState(initial?.unit ?? "events");
   const [count, setCount]   = useState(String(initial?.required_count ?? 3));
   const [deadline, setDl]   = useState(initial?.deadline ?? "");
+  const [groupId, setGroupId] = useState(initial?.group_id ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState("");
 
@@ -64,6 +66,7 @@ function RequirementModal({ initial, onSave, onClose }) {
       unit,
       required_count: Math.max(1, parseInt(count) || 1),
       deadline: deadline || null,
+      group_id: groupId || null,
     });
     setSaving(false);
     if (result?.success === false) { setError(result.error); return; }
@@ -127,6 +130,19 @@ function RequirementModal({ initial, onSave, onClose }) {
 
         <FormField label={unit === "points" ? "Required Points" : "Required Events"}>
           <Input type="number" value={count} onChange={setCount} placeholder="3" />
+        </FormField>
+
+        <FormField label="Visible To">
+          <Select
+            value={groupId}
+            onChange={setGroupId}
+            options={[{ value: "", label: "Everyone in the org" }, ...groups.map((g) => ({ value: g.id, label: g.name }))]}
+          />
+          <p style={{ fontSize: 11, color: "#94a3b8", margin: "4px 0 0" }}>
+            {groupId
+              ? "Only members in this group will see this requirement."
+              : "Visible to every member of the org."}
+          </p>
         </FormField>
 
         <FormField label="Deadline (optional)">
@@ -253,6 +269,7 @@ export default function Requirements() {
   const { requirements, addRequirement, updateRequirement, deleteRequirement } = useRequirements();
   const { events, attendance } = useEvents();
   const { members } = useMembers();
+  const { groups, getGroupMemberIds } = useGroups();
   const [showAdd, setShowAdd]       = useState(false);
   const [editing, setEditing]       = useState(null);
   const [confirmDelete, setConfirm] = useState(null);
@@ -268,7 +285,14 @@ export default function Requirements() {
   });
 
   // Only real members (have Supabase user accounts) can have tracked attendance
-  const realMembers = members.filter((m) => m.isReal);
+  const allRealMembers = members.filter((m) => m.isReal);
+
+  // For a group-scoped requirement, only count/show members who are actually in that group
+  function membersForRequirement(req) {
+    if (!req.group_id) return allRealMembers;
+    const ids = getGroupMemberIds(req.group_id);
+    return allRealMembers.filter((m) => ids.has(m.id));
+  }
 
   function toggleExpand(id) {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -311,9 +335,10 @@ export default function Requirements() {
         {requirements.map((req) => {
           const color = categoryColor(req.category);
           const isExpanded = !!expanded[req.id];
+          const scopedMembers = membersForRequirement(req);
 
-          // Completion stats across all real members
-          const completedMembers = realMembers.filter((m) => {
+          // Completion stats across the members this requirement is visible to
+          const completedMembers = scopedMembers.filter((m) => {
             const attended = memberAttended[m.id] || new Set();
             const catEvents = events.filter((e) => e.requirement_category === req.category);
             const inCat = catEvents.filter((e) => attended.has(e.id));
@@ -323,7 +348,7 @@ export default function Requirements() {
             return n >= req.required_count;
           });
 
-          const total = realMembers.length;
+          const total = scopedMembers.length;
           const completedCount = completedMembers.length;
           const completionPct = total > 0 ? Math.round((completedCount / total) * 100) : 0;
           const isOverdue = daysUntil(req.deadline) !== null && daysUntil(req.deadline) < 0;
@@ -342,6 +367,15 @@ export default function Requirements() {
                     }}>
                       {req.category}
                     </span>
+                    {req.group_id && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, color: "#6366f1",
+                        background: "#eef2ff", padding: "3px 10px",
+                        borderRadius: 20, display: "flex", alignItems: "center", gap: 4,
+                      }}>
+                        ◆ {req.group_name || "Group"}
+                      </span>
+                    )}
                     <DeadlineChip deadline={req.deadline} />
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -396,7 +430,9 @@ export default function Requirements() {
 
                 {total === 0 && (
                   <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 12, marginBottom: 0 }}>
-                    No members with accounts yet. Share the member join code to get started.
+                    {req.group_id
+                      ? "No members with accounts are in this group yet."
+                      : "No members with accounts yet. Share the member join code to get started."}
                   </p>
                 )}
 
@@ -414,14 +450,14 @@ export default function Requirements() {
               {/* Member breakdown */}
               {isExpanded && total > 0 && (
                 <div style={{ borderTop: "1px solid #f1f5f9" }}>
-                  {realMembers.map((m, i) => (
+                  {scopedMembers.map((m, i) => (
                     <MemberProgressRow
                       key={m.id}
                       member={m}
                       req={req}
                       events={events}
                       attendedSet={memberAttended[m.id] || new Set()}
-                      isLast={i === realMembers.length - 1}
+                      isLast={i === scopedMembers.length - 1}
                     />
                   ))}
                 </div>
@@ -432,11 +468,12 @@ export default function Requirements() {
       </div>
 
       {showAdd && (
-        <RequirementModal onSave={addRequirement} onClose={() => setShowAdd(false)} />
+        <RequirementModal groups={groups} onSave={addRequirement} onClose={() => setShowAdd(false)} />
       )}
       {editing && (
         <RequirementModal
           initial={editing}
+          groups={groups}
           onSave={(fields) => updateRequirement(editing.id, fields)}
           onClose={() => setEditing(null)}
         />

@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings } from "lucide-react";
+import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings, Layers } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
+import Groups from "./pages/Groups";
 import Events from "./pages/Events";
 import Attendance from "./pages/Attendance";
 import Requirements from "./pages/Requirements";
@@ -13,6 +14,7 @@ import MemberView from "./pages/MemberView";
 import LandingPage from "./pages/LandingPage";
 import Sidebar from "./components/Sidebar";
 import { MembersProvider } from "./context/MembersContext";
+import { GroupsProvider } from "./context/GroupsContext";
 import { EventsProvider } from "./context/EventsContext";
 import { NotesProvider } from "./context/NotesContext";
 import { RequirementsProvider } from "./context/RequirementsContext";
@@ -21,6 +23,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 const PAGES = {
   dashboard:    { label: "Dashboard",    icon: <BarChart2   size={18} />, component: Dashboard },
   members:      { label: "Members",      icon: <Users       size={18} />, component: Members },
+  groups:       { label: "Groups",       icon: <Layers      size={18} />, component: Groups },
   events:       { label: "Events",       icon: <Calendar    size={18} />, component: Events },
   attendance:   { label: "Attendance",   icon: <Clock       size={18} />, component: Attendance },
   requirements: { label: "Requirements", icon: <CheckSquare size={18} />, component: Requirements },
@@ -339,6 +342,7 @@ function OrgDashboard() {
 
   return (
     <MembersProvider>
+      <GroupsProvider>
       <NotesProvider>
           <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
             <Sidebar
@@ -376,6 +380,7 @@ function OrgDashboard() {
             <AddOrgModal onClose={() => setShowAddOrgModal(false)} />
           )}
         </NotesProvider>
+      </GroupsProvider>
     </MembersProvider>
   );
 }
