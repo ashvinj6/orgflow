@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMembers } from "../context/MembersContext";
 import { useEvents } from "../context/EventsContext";
+import { useAuth } from "../context/AuthContext";
 import { Card, SearchInput, Badge, Modal, Button, FormField, Input, Select } from "../components/UI";
 import { getEngagementLevel, getEngagementColor } from "../data/mockData";
 
@@ -15,11 +16,17 @@ function getMemberAttendedEvents(memberId, attendance) {
 export default function Members() {
   const { members, addMember, deleteMember } = useMembers();
   const { events, attendance } = useEvents();
+  const { user, activeOrg } = useAuth();
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("All");
   const [showAdd, setShowAdd] = useState(false);
   const [newMember, setNewMember] = useState({ name: "", role: "Member", committee: "", major: "", email: "" });
   const [otherRole, setOtherRole] = useState("");
+  const [pendingRemove, setPendingRemove] = useState(null);
+  const [removeError, setRemoveError] = useState("");
+
+  // Only President/VP can remove fellow execs (e.g. duplicate accounts); any exec can remove regular members
+  const canRemoveExecs = activeOrg?.role === "President" || activeOrg?.role === "Vice President";
 
   const pastEvents = events.filter((e) => new Date(e.date) <= new Date());
 
@@ -37,6 +44,17 @@ export default function Members() {
     setNewMember({ name: "", role: "Member", committee: "", major: "", email: "" });
     setOtherRole("");
     setShowAdd(false);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!pendingRemove) return;
+    const result = await deleteMember(pendingRemove);
+    if (result && result.success === false) {
+      setRemoveError(result.error || "Failed to remove member.");
+      return;
+    }
+    setPendingRemove(null);
+    setRemoveError("");
   };
 
   return (
@@ -119,8 +137,14 @@ export default function Members() {
                       <Badge label={level} color={getEngagementColor(level)} />
                     </td>
                     <td style={{ padding: "12px 16px" }}>
-                      {m.isManual && (
-                        <button onClick={() => deleteMember(m.id)} style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }} title="Remove">✕</button>
+                      {m.id !== user?.id && (m.userType !== "exec" || canRemoveExecs) && (
+                        <button
+                          onClick={() => { setRemoveError(""); setPendingRemove(m); }}
+                          style={{ border: "none", background: "none", color: "#ef4444", cursor: "pointer", fontSize: 16 }}
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -152,6 +176,27 @@ export default function Members() {
         <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 24 }}>
           <Button variant="secondary" onClick={() => setShowAdd(false)}>Cancel</Button>
           <Button onClick={handleAdd}>Add Member</Button>
+        </div>
+      </Modal>
+
+      {/* Remove Member Confirmation */}
+      <Modal open={!!pendingRemove} onClose={() => { setPendingRemove(null); setRemoveError(""); }} title="Remove Member">
+        <p style={{ fontSize: 14, color: "var(--text-primary, #0f172a)", marginTop: 0 }}>
+          Are you sure you want to remove <strong>{pendingRemove?.name}</strong> from the organization?
+        </p>
+        <p style={{ fontSize: 13, color: "var(--text-muted, #64748b)", marginBottom: 16 }}>
+          {pendingRemove?.isReal
+            ? "They'll lose access to this org, but their account stays intact and they can rejoin with a join code."
+            : "This will permanently delete this manually-added member record."}
+        </p>
+        {removeError && (
+          <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fecaca", color: "#dc2626", fontSize: 13, marginBottom: 14 }}>
+            {removeError}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={() => { setPendingRemove(null); setRemoveError(""); }}>Cancel</Button>
+          <Button variant="danger" onClick={handleConfirmRemove}>Remove</Button>
         </div>
       </Modal>
     </div>

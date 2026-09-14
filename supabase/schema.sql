@@ -147,6 +147,24 @@ create policy "org_members_select" on public.org_members
 create policy "org_members_insert" on public.org_members
   for insert to authenticated with check (user_id = auth.uid());
 
+-- Any exec can remove a regular member; removing a fellow exec
+-- (e.g. a duplicate account) is restricted to President/Vice President.
+create policy "org_members_delete" on public.org_members
+  for delete to authenticated
+  using (
+    user_id <> auth.uid()
+    and exists (
+      select 1 from public.org_members as requester
+      where requester.org_id = org_members.org_id
+        and requester.user_id = auth.uid()
+        and requester.user_type = 'exec'
+        and (
+          org_members.user_type <> 'exec'
+          or requester.role in ('President', 'Vice President')
+        )
+    )
+  );
+
 -- events
 create policy "events_select" on public.events
   for select to authenticated

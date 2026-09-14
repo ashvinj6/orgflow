@@ -81,10 +81,22 @@ export function MembersProvider({ children }) {
     return newMember;
   };
 
-  // Only manual members can be deleted this way
-  const deleteMember = async (id) => {
-    await supabase.from("manual_members").delete().eq("id", id);
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+  // Removes a member from the org. Manual members are deleted outright;
+  // real accounts just have their org_members row removed (their login/profile stays intact).
+  const deleteMember = async (member) => {
+    if (member.isReal) {
+      const { error } = await supabase
+        .from("org_members")
+        .delete()
+        .eq("org_id", activeOrgId)
+        .eq("user_id", member.id);
+      if (error) return { success: false, error: error.message };
+    } else {
+      const { error } = await supabase.from("manual_members").delete().eq("id", member.id);
+      if (error) return { success: false, error: error.message };
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== member.id));
+    return { success: true };
   };
 
   const updateMember = async (id, updates) => {
