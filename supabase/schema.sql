@@ -486,3 +486,129 @@ create policy "participation_requirements_select" on public.participation_requir
         and group_members.member_id = auth.uid()
     )
   );
+
+-- ══════════════════════════════════════════════════════════════════
+-- 6. ADMIN ACCESS (migration — run this whole section once)
+--
+-- Marks one account (by email) as an OrgFlow admin and gives it
+-- READ-ONLY visibility into every org's data, so it can preview any
+-- org as an exec or a member for beta testing. Admin access never
+-- grants insert/update/delete — those stay restricted to real
+-- org_members rows, so previewing can't corrupt real org data.
+-- ══════════════════════════════════════════════════════════════════
+
+alter table public.profiles
+  add column if not exists is_admin boolean not null default false;
+
+update public.profiles
+  set is_admin = true
+  where email = 'ashvin.jayanthi@gmail.com';
+
+-- profiles / orgs / org_members already use `using (true)` selects,
+-- i.e. any authenticated user can already read every row — no change
+-- needed there. Everything below is scoped to org_members, so each
+-- gets an `or` branch that passes for the admin account.
+
+drop policy if exists events_select on public.events;
+create policy events_select on public.events for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = events.org_id
+        and org_members.user_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists attendance_select on public.attendance_records;
+create policy attendance_select on public.attendance_records for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = attendance_records.org_id
+        and org_members.user_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists sessions_select on public.checkin_sessions;
+create policy sessions_select on public.checkin_sessions for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = checkin_sessions.org_id
+        and org_members.user_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists manual_members_select on public.manual_members;
+create policy manual_members_select on public.manual_members for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = manual_members.org_id
+        and org_members.user_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists notes_select on public.notes;
+create policy notes_select on public.notes for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = notes.org_id
+        and org_members.user_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists groups_select on public.groups;
+create policy groups_select on public.groups for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = groups.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or exists (
+      select 1 from public.group_members
+      where group_members.group_id = groups.id
+        and group_members.member_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists group_members_select on public.group_members;
+create policy group_members_select on public.group_members for select to authenticated
+  using (
+    member_id = auth.uid()
+    or exists (
+      select 1 from public.groups
+      join public.org_members on org_members.org_id = groups.org_id
+      where groups.id = group_members.group_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists participation_requirements_select on public.participation_requirements;
+create policy participation_requirements_select on public.participation_requirements for select to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = participation_requirements.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or group_id is null
+    or exists (
+      select 1 from public.group_members
+      where group_members.group_id = participation_requirements.group_id
+        and group_members.member_id = auth.uid()
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );

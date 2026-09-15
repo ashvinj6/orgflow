@@ -475,7 +475,7 @@ function ActiveSessionBanner({ session, user, orgId, onCheckedIn }) {
 // ────────────────────────────────────────────
 // Main Dashboard
 // ────────────────────────────────────────────
-function MemberDashboard({ orgEntry, user }) {
+export function MemberDashboard({ orgEntry, user }) {
   const { getEventsForOrg, addAttendee } = useEvents();
   const { getRequirementsForOrg, computeProgress } = useRequirements();
   const [orgEvents, setOrgEvents] = useState([]);

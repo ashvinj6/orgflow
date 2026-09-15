@@ -10,9 +10,11 @@ import Insights from "./pages/Insights";
 import Notes from "./pages/Notes";
 import OrgSettings from "./pages/OrgSettings";
 import AuthPage from "./pages/AuthPage";
-import MemberView from "./pages/MemberView";
+import MemberView, { MemberDashboard } from "./pages/MemberView";
 import LandingPage from "./pages/LandingPage";
+import AdminPortal from "./pages/AdminPortal";
 import Sidebar from "./components/Sidebar";
+import AdminPreviewBar from "./components/AdminPreviewBar";
 import { MembersProvider } from "./context/MembersContext";
 import { GroupsProvider } from "./context/GroupsContext";
 import { EventsProvider } from "./context/EventsContext";
@@ -335,15 +337,19 @@ function OrgDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
   const {
-    user, activeOrg, newOrgCodes,
+    user, activeOrg, newOrgCodes, adminPreview, exitAdminPreview,
     switchOrg, getOrgJoinCode, clearNewOrgCodes, logout,
   } = useAuth();
   const PageComponent = PAGES[currentPage].component;
+  const topOffset = adminPreview ? 40 : 0;
 
   return (
     <MembersProvider>
       <GroupsProvider>
       <NotesProvider>
+          {adminPreview && (
+            <AdminPreviewBar orgName={adminPreview.orgName} viewAs="exec" onExit={exitAdminPreview} />
+          )}
           <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
             <Sidebar
               pages={PAGES}
@@ -355,13 +361,15 @@ function OrgDashboard() {
               user={user}
               activeOrg={activeOrg}
               onSwitchOrg={switchOrg}
-              onAddOrg={() => setShowAddOrgModal(true)}
+              onAddOrg={adminPreview ? undefined : () => setShowAddOrgModal(true)}
               getOrgJoinCode={getOrgJoinCode}
+              topOffset={topOffset}
             />
             <main
               style={{
                 flex: 1,
                 marginLeft: sidebarOpen ? 240 : 64,
+                marginTop: topOffset,
                 transition: "margin-left 0.3s ease",
                 padding: "32px 40px",
                 maxWidth: 1200,
@@ -385,8 +393,27 @@ function OrgDashboard() {
   );
 }
 
+// Admin-only: read-only member-side preview of any org, reusing the same
+// MemberDashboard the real member view renders, without needing an
+// org_members row (RLS grants the admin account SELECT on everything).
+function AdminMemberPreview() {
+  const { user, adminPreview, exitAdminPreview } = useAuth();
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
+      <AdminPreviewBar orgName={adminPreview.orgName} viewAs="member" onExit={exitAdminPreview} />
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "76px 32px 36px" }}>
+        <MemberDashboard
+          orgEntry={{ orgId: adminPreview.orgId, orgName: adminPreview.orgName }}
+          user={user}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AppRouter() {
-  const { user, loading } = useAuth();
+  const { user, loading, adminPreview } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
 
   if (loading) {
@@ -401,6 +428,8 @@ function AppRouter() {
   }
   if (!user && showLanding) return <LandingPage onGetStarted={() => setShowLanding(false)} />;
   if (!user) return <AuthPage onBack={() => setShowLanding(true)} />;
+  if (adminPreview) return adminPreview.viewAs === "exec" ? <OrgDashboard /> : <AdminMemberPreview />;
+  if (user.isAdmin) return <AdminPortal />;
   if (user.userType === "member") return <MemberView />;
   return <OrgDashboard />;
 }

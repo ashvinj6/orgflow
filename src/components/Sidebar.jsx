@@ -12,6 +12,7 @@ export default function Sidebar({
   onSwitchOrg,
   onAddOrg,
   getOrgJoinCode,
+  topOffset = 0,
 }) {
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [copiedOrgId, setCopiedOrgId] = useState(null);
@@ -33,9 +34,9 @@ export default function Sidebar({
     <nav
       style={{
         position: "fixed",
-        top: 0,
+        top: topOffset,
         left: 0,
-        height: "100vh",
+        height: `calc(100vh - ${topOffset}px)`,
         width: open ? 240 : 64,
         background: "var(--bg-sidebar, #0f172a)",
         color: "var(--text-sidebar, #e2e8f0)",

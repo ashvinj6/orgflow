@@ -10,7 +10,7 @@ function generateJoinCode() {
 async function loadUserData(authUserId, email) {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name, user_type")
+    .select("name, user_type, is_admin")
     .eq("id", authUserId)
     .single();
 
@@ -33,17 +33,31 @@ async function loadUserData(authUserId, email) {
     name: profile.name,
     email,
     userType: profile.user_type,
+    isAdmin: !!profile.is_admin,
     orgs,
   };
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [activeOrgId, setActiveOrgId] = useState(null);
+  const [rawActiveOrgId, setActiveOrgId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [newOrgCodes, setNewOrgCodes] = useState(null);
+  // Admin-only: { orgId, orgName, viewAs: 'exec' | 'member' } while previewing another org.
+  const [adminPreview, setAdminPreview] = useState(null);
 
-  const activeOrg = user?.orgs?.find((o) => o.orgId === activeOrgId) ?? user?.orgs?.[0] ?? null;
+  // While an admin preview is active, it overrides the real active org for
+  // every org-scoped context (Members, Groups, Notes, Events, Requirements),
+  // which all read activeOrgId/activeOrg from this same context.
+  const activeOrgId = adminPreview ? adminPreview.orgId : rawActiveOrgId;
+  const activeOrg = adminPreview
+    ? {
+        orgId: adminPreview.orgId,
+        orgName: adminPreview.orgName,
+        role: adminPreview.viewAs === "exec" ? "Exec (Admin Preview)" : "Member (Admin Preview)",
+        userType: adminPreview.viewAs,
+      }
+    : user?.orgs?.find((o) => o.orgId === rawActiveOrgId) ?? user?.orgs?.[0] ?? null;
 
   useEffect(() => {
     // Check for existing session on mount
@@ -250,11 +264,50 @@ export function AuthProvider({ children }) {
     setNewOrgCodes(null);
   }
 
+  // Admin-only: preview any org as an exec or a member without joining it.
+  // Read-only — RLS grants the admin account SELECT everywhere but no writes.
+  function startAdminPreview(orgId, orgName, viewAs) {
+    if (!user?.isAdmin) return;
+    setAdminPreview({ orgId, orgName, viewAs });
+  }
+
+  function exitAdminPreview() {
+    setAdminPreview(null);
+  }
+
+  // Admin-only: every org on the platform, with rough member counts, for the admin portal list.
+  async function getAllOrgsForAdmin() {
+    const { data: orgs } = await supabase
+      .from("orgs")
+      .select("id, name, created_at")
+      .order("created_at", { ascending: false });
+
+    const { data: memberships } = await supabase
+      .from("org_members")
+      .select("org_id, user_type");
+
+    const counts = {};
+    (memberships || []).forEach((m) => {
+      if (!counts[m.org_id]) counts[m.org_id] = { execCount: 0, memberCount: 0 };
+      if (m.user_type === "exec") counts[m.org_id].execCount++;
+      else counts[m.org_id].memberCount++;
+    });
+
+    return (orgs || []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      createdAt: o.created_at,
+      execCount: counts[o.id]?.execCount || 0,
+      memberCount: counts[o.id]?.memberCount || 0,
+    }));
+  }
+
   async function logout() {
     await supabase.auth.signOut();
     setUser(null);
     setActiveOrgId(null);
     setNewOrgCodes(null);
+    setAdminPreview(null);
   }
 
   return (
@@ -264,6 +317,7 @@ export function AuthProvider({ children }) {
         login, signup, joinOrg, joinMemberOrg, switchOrg,
         getOrgCodes, getOrgJoinCode, regenerateCode, getOrgRoster,
         clearNewOrgCodes, logout,
+        adminPreview, startAdminPreview, exitAdminPreview, getAllOrgsForAdmin,
       }}
     >
       {children}
