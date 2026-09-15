@@ -338,17 +338,36 @@ export default function Sidebar({
               background: "rgba(255,255,255,0.04)",
             }}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#e2e8f0",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {user.name}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#e2e8f0",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {user.name}
+              </div>
+              {user.isAdmin && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: "#f97316",
+                    border: "1px solid #f97316",
+                    borderRadius: 4,
+                    padding: "1px 5px",
+                    letterSpacing: "0.04em",
+                    flexShrink: 0,
+                  }}
+                  title="This is your OrgFlow admin account"
+                >
+                  ADMIN
+                </span>
+              )}
             </div>
             <div
               style={{

@@ -612,3 +612,55 @@ create policy participation_requirements_select on public.participation_requirem
     )
     or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
   );
+
+-- ══════════════════════════════════════════════════════════════════
+-- 7. ADMIN MEMBER MANAGEMENT (migration — run this whole section once)
+--
+-- Lets the admin account add and remove members while previewing an
+-- org, so beta-testing can actually fix roster issues on the spot.
+-- Deliberately scoped to members only — every other table (events,
+-- notes, requirements, groups, attendance) stays read-only for admin.
+-- ══════════════════════════════════════════════════════════════════
+
+drop policy if exists manual_members_insert on public.manual_members;
+create policy manual_members_insert on public.manual_members for insert to authenticated
+  with check (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = manual_members.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists manual_members_delete on public.manual_members;
+create policy manual_members_delete on public.manual_members for delete to authenticated
+  using (
+    exists (
+      select 1 from public.org_members
+      where org_members.org_id = manual_members.org_id
+        and org_members.user_id = auth.uid()
+        and org_members.user_type = 'exec'
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
+
+drop policy if exists org_members_delete on public.org_members;
+create policy org_members_delete on public.org_members for delete to authenticated
+  using (
+    (
+      user_id <> auth.uid()
+      and exists (
+        select 1 from public.org_members as requester
+        where requester.org_id = org_members.org_id
+          and requester.user_id = auth.uid()
+          and requester.user_type = 'exec'
+          and (
+            org_members.user_type <> 'exec'
+            or requester.role in ('President', 'Vice President')
+          )
+      )
+    )
+    or exists (select 1 from public.profiles where id = auth.uid() and is_admin)
+  );
