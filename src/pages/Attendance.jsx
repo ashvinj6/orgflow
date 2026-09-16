@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import QRCodeLib from "qrcode";
 import { useMembers } from "../context/MembersContext";
 import { useEvents } from "../context/EventsContext";
 import { useAuth } from "../context/AuthContext";
@@ -31,21 +32,43 @@ function useCountdown(expiresAt) {
   return ms;
 }
 
-// ── QR code image using api.qrserver.com ──
+// ── QR code, generated entirely client-side (no third-party image API) ──
 // Encodes a link (not plain text) so scanning with a phone's camera opens
 // OrgFlow directly and can check the member in automatically — see the
 // `checkin` URL param handling in App.jsx.
 function QRCode({ code, size = 180 }) {
-  const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=${code}`;
-  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(checkinUrl)}&margin=10`;
+  const [dataUrl, setDataUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=${code}`;
+    QRCodeLib.toDataURL(checkinUrl, { width: size, margin: 1, color: { dark: "#0f172a", light: "#ffffff" } })
+      .then((url) => { if (!cancelled) setDataUrl(url); })
+      .catch(() => { if (!cancelled) setDataUrl(null); });
+    return () => { cancelled = true; };
+  }, [code, size]);
+
+  if (!dataUrl) {
+    return (
+      <div
+        style={{
+          width: size, height: size, borderRadius: 12, border: "1px solid #e2e8f0",
+          background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 12, color: "#94a3b8", textAlign: "center", padding: 8, boxSizing: "border-box",
+        }}
+      >
+        Generating QR…
+      </div>
+    );
+  }
+
   return (
     <img
-      src={src}
+      src={dataUrl}
       alt={`QR code for check-in code ${code}`}
       width={size}
       height={size}
       style={{ borderRadius: 12, border: "1px solid #e2e8f0", display: "block" }}
-      onError={(e) => { e.currentTarget.style.display = "none"; }}
     />
   );
 }
