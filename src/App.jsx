@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings } from "lucide-react";
+import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings, Folder } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import Events from "./pages/Events";
@@ -8,6 +8,7 @@ import Requirements from "./pages/Requirements";
 import Insights from "./pages/Insights";
 import Notes from "./pages/Notes";
 import OrgSettings from "./pages/OrgSettings";
+import Groups from "./pages/Groups";
 import AuthPage from "./pages/AuthPage";
 import MemberView from "./pages/MemberView";
 import LandingPage from "./pages/LandingPage";
@@ -21,6 +22,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 const PAGES = {
   dashboard:    { label: "Dashboard",    icon: <BarChart2   size={18} />, component: Dashboard },
   members:      { label: "Members",      icon: <Users       size={18} />, component: Members },
+  groups:       { label: "Groups",       icon: <Folder      size={18} />, component: Groups },
   events:       { label: "Events",       icon: <Calendar    size={18} />, component: Events },
   attendance:   { label: "Attendance",   icon: <Clock       size={18} />, component: Attendance },
   requirements: { label: "Requirements", icon: <CheckSquare size={18} />, component: Requirements },
