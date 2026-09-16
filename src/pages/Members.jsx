@@ -59,7 +59,7 @@ export default function Members() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--text-primary, #0f172a)", letterSpacing: "-0.02em" }}>Members</h1>
           <p style={{ color: "var(--text-muted, #64748b)", marginTop: 4, fontSize: 14 }}>{members.length} total members</p>
@@ -68,7 +68,7 @@ export default function Members() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
         <SearchInput value={search} onChange={setSearch} placeholder="Search by name or email..." />
         <select
           value={filterRole}
@@ -92,7 +92,8 @@ export default function Members() {
             <Button onClick={() => setShowAdd(true)}>+ Add Member Manually</Button>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 640 }}>
             <thead>
               <tr style={{ borderBottom: "2px solid var(--border, #e2e8f0)" }}>
                 {["Name", "Role", "Committee", "Joined", "Attendance", "Engagement"].map((h) => (
@@ -155,6 +156,7 @@ export default function Members() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 

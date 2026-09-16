@@ -3,8 +3,9 @@ import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { supabase } from "../lib/supabase";
+import useIsMobile from "../hooks/useIsMobile";
 import {
-  getActiveSessionsForOrg, getSessionByCode,
+  getActiveSessionsForOrg, getSessionByCode, getEventByCode,
   recordCheckIn, hasCheckedIn, formatCountdown,
 } from "../utils/checkin";
 import { getEventState, isLateToday } from "../utils/eventState";
@@ -111,7 +112,7 @@ function JoinOrgModal({ onClose }) {
 // ────────────────────────────────────────────
 function StatCard({ label, value, sub, color }) {
   return (
-    <div style={{ flex: 1, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px" }}>
+    <div style={{ flex: "1 1 150px", minWidth: 150, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px", boxSizing: "border-box" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 34, fontWeight: 800, color: color || "#0f172a", letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 5 }}>{sub}</div>}
@@ -402,6 +403,104 @@ function CheckInModal({ prefillCode, user, orgId, onClose, onSuccess }) {
 }
 
 // ────────────────────────────────────────────
+// Auto check-in — runs when a member scans an event's QR code.
+// The QR encodes a link with a ?checkin=CODE param (see QRCode in
+// Attendance.jsx); this resolves that code against either a live
+// check-in session or a static event attendance code, then records
+// the same attendance_records row a manual code entry would.
+// ────────────────────────────────────────────
+export function AutoCheckIn({ code, user, onDone }) {
+  const [status, setStatus] = useState("checking"); // checking | success | error
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function finish(nextStatus, msg) {
+      if (!cancelled) { setStatus(nextStatus); setMessage(msg); }
+    }
+
+    (async () => {
+      // Try a live, time-limited check-in session first.
+      const session = await getSessionByCode(code);
+      if (session) {
+        if (!user.orgs?.find((o) => o.orgId === session.org_id)) {
+          finish("error", "You're not a member of the organization running this event.");
+          return;
+        }
+        const result = await recordCheckIn({
+          eventId: session.event_id, orgId: session.org_id,
+          userId: user.id, userName: user.name, userEmail: user.email,
+        });
+        if (!result.success && !result.alreadyCheckedIn) { finish("error", result.error); return; }
+        finish("success", result.alreadyCheckedIn
+          ? `You're already checked in to ${session.event_title}.`
+          : `You're checked in to ${session.event_title}.`);
+        return;
+      }
+
+      // Fall back to a permanent, per-event attendance code.
+      const event = await getEventByCode(code);
+      if (!event) { finish("error", "This check-in code is invalid or has expired."); return; }
+      if (!user.orgs?.find((o) => o.orgId === event.org_id)) {
+        finish("error", "You're not a member of the organization running this event.");
+        return;
+      }
+      const result = await recordCheckIn({
+        eventId: event.id, orgId: event.org_id,
+        userId: user.id, userName: user.name, userEmail: user.email,
+        source: "code",
+      });
+      if (!result.success && !result.alreadyCheckedIn) { finish("error", result.error); return; }
+      finish("success", result.alreadyCheckedIn
+        ? `You're already checked in to ${event.title}.`
+        : `You're checked in to ${event.title}.`);
+    })();
+
+    return () => { cancelled = true; };
+  }, [code]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, fontFamily: "'DM Sans', sans-serif", padding: 16 }}>
+      <div style={{ background: "#fff", borderRadius: 18, padding: "36px 32px", width: 380, maxWidth: "92vw", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.18)", boxSizing: "border-box" }}>
+        {status === "checking" && (
+          <>
+            <div style={{ fontSize: 32, marginBottom: 14 }}>⏳</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Checking you in…</div>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>You're checked in!</div>
+            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>{message}</p>
+            <button
+              onClick={onDone}
+              style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: "#22c55e", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Done
+            </button>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Couldn't check you in</div>
+            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>{message}</p>
+            <button
+              onClick={onDone}
+              style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "transparent", color: "#0f172a", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Close
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
 // Active session banner for member dashboard
 // ────────────────────────────────────────────
 function ActiveSessionBanner({ session, user, orgId, onCheckedIn }) {
@@ -475,7 +574,8 @@ function ActiveSessionBanner({ session, user, orgId, onCheckedIn }) {
 // ────────────────────────────────────────────
 // Main Dashboard
 // ────────────────────────────────────────────
-function MemberDashboard({ orgEntry, user }) {
+export function MemberDashboard({ orgEntry, user }) {
+  const isMobile = useIsMobile();
   const { getEventsForOrg, addAttendee } = useEvents();
   const { getRequirementsForOrg, computeProgress } = useRequirements();
   const [orgEvents, setOrgEvents] = useState([]);
@@ -634,7 +734,7 @@ function MemberDashboard({ orgEntry, user }) {
         const allMet = reqProgress && totalReqs > 0 && metCount === totalReqs;
 
         return (
-          <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
             <StatCard label="Events Attended" value={attendedCount} sub={`out of ${totalPast} past events`} color="#6366f1" />
             <StatCard label="Participation Rate" value={`${pct}%`} sub={pct >= 60 ? "On track" : "Below target"} color={pct >= 60 ? "#16a34a" : "#f97316"} />
             {reqProgress ? (
@@ -672,6 +772,11 @@ function MemberDashboard({ orgEntry, user }) {
                           {req.category}
                         </span>
                         <span style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>{req.name}</span>
+                        {req.group_name && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", background: "#eef2ff", padding: "2px 7px", borderRadius: 20 }}>
+                            ◆ {req.group_name}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                         {daysLeft !== null && (
@@ -833,12 +938,13 @@ function MemberDashboard({ orgEntry, user }) {
             <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Organization Notes</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Announcements and updates from your officers</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 0 }}>
             {orgNotes.map((n, i) => {
               const catColors = { "Event Learning": "#06b6d4", Reminder: "#f59e0b", General: "#6b7280" };
               const color = catColors[n.category] || "#6b7280";
+              const isLast = isMobile ? i === orgNotes.length - 1 : i >= orgNotes.length - (orgNotes.length % 2 === 0 ? 2 : 1);
               return (
-                <div key={n.id} style={{ padding: "16px 20px", borderBottom: i < orgNotes.length - 2 ? "1px solid #f8fafc" : "none", borderRight: i % 2 === 0 ? "1px solid #f8fafc" : "none" }}>
+                <div key={n.id} style={{ padding: "16px 20px", borderBottom: isLast ? "none" : "1px solid #f8fafc", borderRight: !isMobile && i % 2 === 0 ? "1px solid #f8fafc" : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}12`, border: `1px solid ${color}30`, padding: "2px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       {n.category}
@@ -864,6 +970,7 @@ function MemberDashboard({ orgEntry, user }) {
 // ────────────────────────────────────────────
 export default function MemberView() {
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [activeOrgIdx, setActiveOrgIdx] = useState(0);
 
@@ -874,12 +981,12 @@ export default function MemberView() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* ── Top nav ── */}
-      <div style={{ background: "#0f172a", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, position: "sticky", top: 0, zIndex: 50 }}>
+      <div style={{ background: "#0f172a", padding: isMobile ? "10px 16px" : "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", minHeight: 60, position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
           <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>OrgFlow</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
             onClick={() => setShowJoinModal(true)}
             style={{ padding: "6px 13px", borderRadius: 7, border: "1px solid #334155", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s ease" }}
@@ -888,9 +995,11 @@ export default function MemberView() {
           >
             + Join Org
           </button>
-          <span style={{ fontSize: 13, color: "#475569" }}>
-            <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 13, color: "#475569" }}>
+              <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
+            </span>
+          )}
           <button
             onClick={logout}
             style={{ padding: "6px 13px", borderRadius: 7, border: "1px solid #334155", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s ease" }}
@@ -902,7 +1011,7 @@ export default function MemberView() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 32px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 32px", boxSizing: "border-box" }}>
 
         {/* ── Page header ── */}
         <div style={{ marginBottom: 24 }}>
@@ -933,13 +1042,13 @@ export default function MemberView() {
           <>
             {/* ── Org tabs (if multiple) ── */}
             {orgs.length > 1 && (
-              <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#f1f5f9", padding: 4, borderRadius: 10, width: "fit-content" }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#f1f5f9", padding: 4, borderRadius: 10, maxWidth: "100%", overflowX: "auto" }}>
                 {orgs.map((org, idx) => (
                   <button
                     key={org.orgId}
                     onClick={() => setActiveOrgIdx(idx)}
                     style={{
-                      padding: "8px 16px", borderRadius: 7, border: "none",
+                      padding: "8px 16px", borderRadius: 7, border: "none", flexShrink: 0,
                       fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer",
                       transition: "all 0.15s ease",
                       background: activeOrgIdx === idx ? "#fff" : "transparent",

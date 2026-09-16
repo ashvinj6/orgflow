@@ -162,13 +162,14 @@ export default function LandingPage({ onGetStarted }) {
           display: "flex", alignItems: "center", justifyContent: "space-between",
           height: 60,
         }}
+        className="og-nav"
       >
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 30, height: 30, borderRadius: 7, objectFit: "cover" }} />
           <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>OrgFlow</span>
         </div>
 
-        <div style={{ display: "flex", gap: 32, position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+        <div className="og-nav-links" style={{ display: "flex", gap: 32, position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
           {["Features", "How it works", "For members"].map((label) => (
             <a
               key={label}
@@ -182,6 +183,20 @@ export default function LandingPage({ onGetStarted }) {
           ))}
         </div>
 
+        <div className="og-nav-actions" style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={onGetStarted}
+            style={{
+              padding: "8px 12px", borderRadius: 8, border: "1.5px solid transparent",
+              background: "transparent", color: "#fff", fontSize: 13, fontWeight: 700,
+              cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Log In
+          </button>
         <button
           onClick={onGetStarted}
           style={{
@@ -194,6 +209,7 @@ export default function LandingPage({ onGetStarted }) {
         >
           Get started free
         </button>
+        </div>
       </nav>
 
       {/* ── Hero ── */}
@@ -244,7 +260,28 @@ export default function LandingPage({ onGetStarted }) {
           <br />
           without the chaos.
         </h1>
-        <style>{`@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }`}</style>
+        <style>{`
+          @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+          @media (max-width: 860px) {
+            .og-feature-grid { grid-template-columns: 1fr 1fr !important; }
+            .og-feature-grid > * { grid-column: span 1 !important; }
+          }
+          @media (max-width: 640px) {
+            .og-feature-grid { grid-template-columns: 1fr !important; }
+            .og-steps-grid { grid-template-columns: 1fr !important; }
+          }
+          @media (max-width: 900px) {
+            .og-nav-links { display: none !important; }
+          }
+          @media (max-width: 380px) {
+            .og-nav-actions { gap: 4px !important; }
+            .og-nav-actions button { padding: 8px !important; }
+          }
+          @media (max-width: 700px) {
+            .og-nav { padding: 0 16px !important; }
+            .og-nav-links { display: none !important; }
+          }
+        `}</style>
 
         <p
           style={{
@@ -311,7 +348,7 @@ export default function LandingPage({ onGetStarted }) {
           </div>
         </FadeIn>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 20 }}>
+        <div className="og-feature-grid" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 20 }}>
           {FEATURES.map((f, i) => (
             <FadeIn key={f.title} delay={i * 0.07} style={{ gridColumn: i < 3 ? "span 2" : "span 3", height: "auto" }}>
               <div
@@ -370,7 +407,7 @@ export default function LandingPage({ onGetStarted }) {
             </div>
           </FadeIn>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32 }}>
+          <div className="og-steps-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32 }}>
             {HOW_IT_WORKS.map((step, i) => (
               <FadeIn key={step.step} delay={i * 0.1} style={{ height: "auto" }}>
                 <div style={{ padding: "28px", background: C.bgCard, borderRadius: 16, border: `1px solid ${C.border}`, height: "100%", boxSizing: "border-box" }}>

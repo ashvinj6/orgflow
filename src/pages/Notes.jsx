@@ -24,7 +24,7 @@ export default function Notes() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--text-primary, #0f172a)", letterSpacing: "-0.02em" }}>Notes</h1>
           <p style={{ color: "var(--text-muted, #64748b)", marginTop: 4, fontSize: 14 }}>Officer notes, learnings & handoff hub</p>
@@ -56,7 +56,7 @@ export default function Notes() {
       </div>
 
       {/* Notes Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
         {filtered.map((n) => (
           <Card
             key={n.id}

@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useGroups } from "../context/GroupsContext";
 import { useMembers } from "../context/MembersContext";
 import { supabase } from "../lib/supabase";
 import { Badge, Button, Card, FormField, Input, Modal, SearchInput } from "../components/UI";
 
 const EMPTY_DRAFT = { id: null, name: "", memberKeys: [] };
-const memberKey = (member) => `${member.isManual ? "manual" : "account"}:${member.id}`;
+const memberKey = (member) => `${member.isManual ? "manual" : "real"}:${member.id}`;
 const isExec = (member) => member.userType === "exec" || (member.isManual && member.role && member.role !== "Member");
 
 export default function Groups() {
   const { activeOrgId } = useAuth();
   const { members } = useMembers();
+  const { reload: reloadSharedGroups } = useGroups();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -28,8 +30,8 @@ export default function Groups() {
     setLoading(true);
     setLoadError("");
     const { data, error } = await supabase
-      .from("member_groups")
-      .select("id, name, created_at, member_group_members(member_id, member_type)")
+      .from("groups")
+      .select("id, name, created_at, group_members(member_id, member_type)")
       .eq("org_id", activeOrgId)
       .order("created_at", { ascending: false });
 
@@ -39,7 +41,7 @@ export default function Groups() {
     } else {
       setGroups((data || []).map((group) => ({
         ...group,
-        memberKeys: (group.member_group_members || []).map((membership) => `${membership.member_type}:${membership.member_id}`),
+        memberKeys: (group.group_members || []).map((membership) => `${membership.member_type}:${membership.member_id}`),
       })));
     }
     setLoading(false);
@@ -79,14 +81,16 @@ export default function Groups() {
     let groupId = draft.id;
 
     if (groupId) {
-      const { error } = await supabase.from("member_groups").update({ name }).eq("id", groupId).eq("org_id", activeOrgId);
+      const { error } = await supabase.from("groups").update({ name }).eq("id", groupId).eq("org_id", activeOrgId);
       if (error) { setSaveError(error.message); setSaving(false); return; }
-      const { error: clearError } = await supabase.from("member_group_members").delete().eq("group_id", groupId);
+      const { error: clearError } = await supabase.from("group_members").delete().eq("group_id", groupId);
       if (clearError) { setSaveError(clearError.message); setSaving(false); return; }
     } else {
-      const { data, error } = await supabase.from("member_groups").insert({ org_id: activeOrgId, name }).select("id").single();
+      const { data, error } = await supabase.from("groups").insert({ org_id: activeOrgId, name }).select("id").single();
       if (error) { setSaveError(error.message); setSaving(false); return; }
       groupId = data.id;
+      // Keep the created ID so a membership-write retry does not create a duplicate.
+      setDraft((current) => ({ ...current, id: groupId }));
     }
 
     if (draft.memberKeys.length > 0) {
@@ -94,19 +98,22 @@ export default function Groups() {
         const [memberType, memberId] = key.split(":");
         return { group_id: groupId, member_id: memberId, member_type: memberType };
       });
-      const { error } = await supabase.from("member_group_members").insert(memberships);
+      const { error } = await supabase.from("group_members").insert(memberships);
       if (error) { setSaveError(error.message); setSaving(false); return; }
     }
 
-    await loadGroups();
+    await Promise.all([loadGroups(), reloadSharedGroups()]);
     setSaving(false); setShowEditor(false);
   }
 
   async function deleteGroup() {
     if (!pendingDelete) return;
-    const { error } = await supabase.from("member_groups").delete().eq("id", pendingDelete.id).eq("org_id", activeOrgId);
+    const { error } = await supabase.from("groups").delete().eq("id", pendingDelete.id).eq("org_id", activeOrgId);
     if (error) setLoadError(error.message);
-    else setGroups((current) => current.filter((group) => group.id !== pendingDelete.id));
+    else {
+      setGroups((current) => current.filter((group) => group.id !== pendingDelete.id));
+      await reloadSharedGroups();
+    }
     setPendingDelete(null);
   }
 
@@ -141,10 +148,10 @@ export default function Groups() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--text-primary, #0f172a)", letterSpacing: "-0.02em" }}>Groups</h1>
-          <p style={{ color: "var(--text-muted, #64748b)", marginTop: 4, fontSize: 14 }}>Organize exec and regular members into custom groups.</p>
+          <p style={{ color: "var(--text-muted, #64748b)", marginTop: 4, fontSize: 14 }}>Organize exec and regular members into custom groups, then scope requirements to a group from the Requirements page.</p>
         </div>
         <Button onClick={openCreate}>+ Create Group</Button>
       </div>
@@ -161,7 +168,7 @@ export default function Groups() {
           <Button onClick={openCreate}>Create Your First Group</Button>
         </Card>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))", gap: 16 }}>
           {groups.map((group) => {
             const groupMembers = group.memberKeys.map((key) => rosterByKey.get(key)).filter(Boolean);
             return (
@@ -197,7 +204,7 @@ export default function Groups() {
       </Modal>
 
       <Modal open={!!pendingDelete} onClose={() => setPendingDelete(null)} title="Delete Group">
-        <p style={{ marginTop: 0, color: "var(--text-primary, #0f172a)", fontSize: 14 }}>Delete <strong>{pendingDelete?.name}</strong>? This removes the group, but does not remove anyone from the organization.</p>
+        <p style={{ marginTop: 0, color: "var(--text-primary, #0f172a)", fontSize: 14 }}>Delete <strong>{pendingDelete?.name}</strong>? This removes the group, but does not remove anyone from the organization. Requirements scoped to this group become visible org-wide.</p>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 24 }}><Button variant="secondary" onClick={() => setPendingDelete(null)}>Cancel</Button><Button variant="danger" onClick={deleteGroup}>Delete Group</Button></div>
       </Modal>
     </div>

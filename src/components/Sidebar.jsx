@@ -12,6 +12,8 @@ export default function Sidebar({
   onSwitchOrg,
   onAddOrg,
   getOrgJoinCode,
+  topOffset = 0,
+  isMobile = false,
 }) {
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [copiedOrgId, setCopiedOrgId] = useState(null);
@@ -30,23 +32,40 @@ export default function Sidebar({
   }
 
   return (
-    <nav
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        height: "100vh",
-        width: open ? 240 : 64,
-        background: "var(--bg-sidebar, #0f172a)",
-        color: "var(--text-sidebar, #e2e8f0)",
-        transition: "width 0.3s ease",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        zIndex: 100,
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <>
+      {/* ── Mobile backdrop: tap outside the drawer to close it ── */}
+      {isMobile && open && (
+        <div
+          onClick={onToggle}
+          style={{
+            position: "fixed",
+            top: topOffset,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 99,
+          }}
+        />
+      )}
+      <nav
+        style={{
+          position: "fixed",
+          top: topOffset,
+          left: 0,
+          height: `calc(100vh - ${topOffset}px)`,
+          width: isMobile ? 260 : (open ? 240 : 64),
+          transform: isMobile ? (open ? "translateX(0)" : "translateX(-100%)") : "none",
+          background: "var(--bg-sidebar, #0f172a)",
+          color: "var(--text-sidebar, #e2e8f0)",
+          transition: isMobile ? "transform 0.25s ease" : "width 0.3s ease",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          zIndex: 100,
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
       {/* ── Logo ── */}
       <div
         style={{
@@ -337,17 +356,36 @@ export default function Sidebar({
               background: "rgba(255,255,255,0.04)",
             }}
           >
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#e2e8f0",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {user.name}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#e2e8f0",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {user.name}
+              </div>
+              {user.isAdmin && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 800,
+                    color: "#f97316",
+                    border: "1px solid #f97316",
+                    borderRadius: 4,
+                    padding: "1px 5px",
+                    letterSpacing: "0.04em",
+                    flexShrink: 0,
+                  }}
+                  title="This is your OrgFlow admin account"
+                >
+                  ADMIN
+                </span>
+              )}
             </div>
             <div
               style={{
@@ -398,6 +436,7 @@ export default function Sidebar({
           </button>
         )}
       </div>
-    </nav>
+      </nav>
+    </>
   );
 }

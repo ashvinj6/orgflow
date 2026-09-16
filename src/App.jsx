@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings, Folder } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings, Layers } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
 import Events from "./pages/Events";
@@ -10,10 +10,14 @@ import Notes from "./pages/Notes";
 import OrgSettings from "./pages/OrgSettings";
 import Groups from "./pages/Groups";
 import AuthPage from "./pages/AuthPage";
-import MemberView from "./pages/MemberView";
+import MemberView, { MemberDashboard, AutoCheckIn } from "./pages/MemberView";
 import LandingPage from "./pages/LandingPage";
+import AdminPortal from "./pages/AdminPortal";
 import Sidebar from "./components/Sidebar";
+import AdminPreviewBar from "./components/AdminPreviewBar";
+import useIsMobile from "./hooks/useIsMobile";
 import { MembersProvider } from "./context/MembersContext";
+import { GroupsProvider } from "./context/GroupsContext";
 import { EventsProvider } from "./context/EventsContext";
 import { NotesProvider } from "./context/NotesContext";
 import { RequirementsProvider } from "./context/RequirementsContext";
@@ -22,7 +26,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 const PAGES = {
   dashboard:    { label: "Dashboard",    icon: <BarChart2   size={18} />, component: Dashboard },
   members:      { label: "Members",      icon: <Users       size={18} />, component: Members },
-  groups:       { label: "Groups",       icon: <Folder      size={18} />, component: Groups },
+  groups:       { label: "Groups",       icon: <Layers      size={18} />, component: Groups },
   events:       { label: "Events",       icon: <Calendar    size={18} />, component: Events },
   attendance:   { label: "Attendance",   icon: <Clock       size={18} />, component: Attendance },
   requirements: { label: "Requirements", icon: <CheckSquare size={18} />, component: Requirements },
@@ -330,42 +334,73 @@ function AddOrgModal({ onClose }) {
 
 // ── Org Dashboard (exec view) ──
 function OrgDashboard() {
+  const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
   const {
-    user, activeOrg, newOrgCodes,
+    user, activeOrg, newOrgCodes, adminPreview, exitAdminPreview,
     switchOrg, getOrgJoinCode, clearNewOrgCodes, logout,
   } = useAuth();
   const PageComponent = PAGES[currentPage].component;
+  const topOffset = adminPreview ? 40 : 0;
+
+  function handleNavigate(key) {
+    setCurrentPage(key);
+    if (isMobile) setSidebarOpen(false);
+  }
 
   return (
     <MembersProvider>
+      <GroupsProvider>
       <NotesProvider>
+          {adminPreview && (
+            <AdminPreviewBar orgName={adminPreview.orgName} viewAs="exec" onExit={exitAdminPreview} />
+          )}
           <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
             <Sidebar
               pages={PAGES}
               currentPage={currentPage}
-              onNavigate={setCurrentPage}
+              onNavigate={handleNavigate}
               open={sidebarOpen}
               onToggle={() => setSidebarOpen(!sidebarOpen)}
               onLogout={logout}
               user={user}
               activeOrg={activeOrg}
               onSwitchOrg={switchOrg}
-              onAddOrg={() => setShowAddOrgModal(true)}
+              onAddOrg={adminPreview ? undefined : () => setShowAddOrgModal(true)}
               getOrgJoinCode={getOrgJoinCode}
+              topOffset={topOffset}
+              isMobile={isMobile}
             />
+            {isMobile && !sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                style={{
+                  position: "fixed", top: topOffset + 14, left: 14, zIndex: 90,
+                  width: 42, height: 42, borderRadius: 10, border: "none",
+                  background: "#0f172a", color: "#fff", fontSize: 18,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                }}
+              >
+                ☰
+              </button>
+            )}
             <main
               style={{
                 flex: 1,
-                marginLeft: sidebarOpen ? 240 : 64,
+                minWidth: 0,
+                marginLeft: isMobile ? 0 : (sidebarOpen ? 240 : 64),
+                marginTop: isMobile ? topOffset + 60 : topOffset,
                 transition: "margin-left 0.3s ease",
-                padding: "32px 40px",
+                padding: isMobile ? "20px 16px" : "32px 40px",
                 maxWidth: 1200,
+                boxSizing: "border-box",
               }}
             >
-              <PageComponent onNavigate={setCurrentPage} />
+              <PageComponent onNavigate={handleNavigate} />
             </main>
           </div>
 
@@ -378,13 +413,42 @@ function OrgDashboard() {
             <AddOrgModal onClose={() => setShowAddOrgModal(false)} />
           )}
         </NotesProvider>
+      </GroupsProvider>
     </MembersProvider>
   );
 }
 
+// Admin-only: read-only member-side preview of any org, reusing the same
+// MemberDashboard the real member view renders, without needing an
+// org_members row (RLS grants the admin account SELECT on everything).
+function AdminMemberPreview() {
+  const { user, adminPreview, exitAdminPreview } = useAuth();
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
+      <AdminPreviewBar orgName={adminPreview.orgName} viewAs="member" onExit={exitAdminPreview} />
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "76px 32px 36px" }}>
+        <MemberDashboard
+          orgEntry={{ orgId: adminPreview.orgId, orgName: adminPreview.orgName }}
+          user={user}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AppRouter() {
-  const { user, loading } = useAuth();
-  const [showLanding, setShowLanding] = useState(true);
+  const { user, loading, adminPreview } = useAuth();
+  // A scanned QR code lands here as ?checkin=CODE — see QRCode in Attendance.jsx.
+  const [checkinCode, setCheckinCode] = useState(
+    () => new URLSearchParams(window.location.search).get("checkin")
+  );
+  const [showLanding, setShowLanding] = useState(!checkinCode);
+
+  // Strip the param once so a refresh (or a later manual navigation) doesn't re-trigger it.
+  useEffect(() => {
+    if (checkinCode) window.history.replaceState(null, "", window.location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -398,8 +462,38 @@ function AppRouter() {
   }
   if (!user && showLanding) return <LandingPage onGetStarted={() => setShowLanding(false)} />;
   if (!user) return <AuthPage onBack={() => setShowLanding(true)} />;
-  if (user.userType === "member") return <MemberView />;
-  return <OrgDashboard />;
+  if (adminPreview) return adminPreview.viewAs === "exec" ? <OrgDashboard /> : <AdminMemberPreview />;
+
+  // Reload so whichever dashboard is underneath (its attendance list is
+  // loaded once on mount) picks up the row AutoCheckIn just inserted.
+  const checkinOverlay = checkinCode && (
+    <AutoCheckIn code={checkinCode} user={user} onDone={() => window.location.reload()} />
+  );
+
+  if (user.isAdmin) {
+    return (
+      <>
+        <AdminPortal />
+        {checkinOverlay}
+      </>
+    );
+  }
+
+  if (user.userType === "member") {
+    return (
+      <>
+        <MemberView />
+        {checkinOverlay}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <OrgDashboard />
+      {checkinOverlay}
+    </>
+  );
 }
 
 export default function App() {

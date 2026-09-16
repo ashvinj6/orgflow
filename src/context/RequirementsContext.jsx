@@ -12,10 +12,10 @@ export function RequirementsProvider({ children }) {
     if (!activeOrgId) { setRequirements([]); return; }
     const { data } = await supabase
       .from("participation_requirements")
-      .select("*")
+      .select("*, groups(name)")
       .eq("org_id", activeOrgId)
       .order("created_at", { ascending: true });
-    setRequirements(data || []);
+    setRequirements((data || []).map((r) => ({ ...r, group_name: r.groups?.name ?? null })));
   }, [activeOrgId]);
 
   useEffect(() => { load(); }, [load]);
@@ -24,11 +24,12 @@ export function RequirementsProvider({ children }) {
     const { data, error } = await supabase
       .from("participation_requirements")
       .insert({ org_id: activeOrgId, ...fields })
-      .select()
+      .select("*, groups(name)")
       .single();
     if (error) return { success: false, error: error.message };
-    setRequirements((prev) => [...prev, data]);
-    return { success: true, data };
+    const withGroupName = { ...data, group_name: data.groups?.name ?? null };
+    setRequirements((prev) => [...prev, withGroupName]);
+    return { success: true, data: withGroupName };
   };
 
   const updateRequirement = async (id, fields) => {
@@ -36,11 +37,12 @@ export function RequirementsProvider({ children }) {
       .from("participation_requirements")
       .update(fields)
       .eq("id", id)
-      .select()
+      .select("*, groups(name)")
       .single();
     if (error) return { success: false, error: error.message };
-    setRequirements((prev) => prev.map((r) => (r.id === id ? data : r)));
-    return { success: true, data };
+    const withGroupName = { ...data, group_name: data.groups?.name ?? null };
+    setRequirements((prev) => prev.map((r) => (r.id === id ? withGroupName : r)));
+    return { success: true, data: withGroupName };
   };
 
   const deleteRequirement = async (id) => {
@@ -48,15 +50,17 @@ export function RequirementsProvider({ children }) {
     setRequirements((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Load requirements for any org (used by member dashboard)
+  // Load requirements for any org (used by member dashboard).
+  // RLS already hides requirements scoped to a group the member isn't in —
+  // this just also pulls the group name so it can be shown for the ones that are visible.
   const getRequirementsForOrg = async (orgId) => {
     if (!orgId) return [];
     const { data } = await supabase
       .from("participation_requirements")
-      .select("*")
+      .select("*, groups(name)")
       .eq("org_id", orgId)
       .order("created_at", { ascending: true });
-    return data || [];
+    return (data || []).map((r) => ({ ...r, group_name: r.groups?.name ?? null }));
   };
 
   // Compute progress for all requirements given a member's attended event set

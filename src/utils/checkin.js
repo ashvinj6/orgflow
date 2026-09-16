@@ -91,7 +91,7 @@ export async function refreshSession(sessionId, durationMinutes) {
 }
 
 // ── Record a member check-in ──
-export async function recordCheckIn({ sessionId, eventId, orgId, userId, userName, userEmail }) {
+export async function recordCheckIn({ sessionId, eventId, orgId, userId, userName, userEmail, source = "session" }) {
   // Check for duplicate
   const { data: existing } = await supabase
     .from("attendance_records")
@@ -100,7 +100,7 @@ export async function recordCheckIn({ sessionId, eventId, orgId, userId, userNam
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (existing) return { success: false, error: "You've already checked in to this event." };
+  if (existing) return { success: false, alreadyCheckedIn: true, error: "You've already checked in to this event." };
 
   const { data, error } = await supabase
     .from("attendance_records")
@@ -110,13 +110,24 @@ export async function recordCheckIn({ sessionId, eventId, orgId, userId, userNam
       user_id: userId,
       user_name: userName,
       user_email: userEmail || null,
-      source: "session",
+      source,
     })
     .select()
     .single();
 
   if (error) return { success: false, error: error.message };
   return { success: true, record: data };
+}
+
+// ── Find the event a static (non-expiring) attendance code belongs to ──
+export async function getEventByCode(code) {
+  const { data } = await supabase
+    .from("events")
+    .select("id, org_id, title, track_attendance, attendance_code")
+    .eq("attendance_code", code.trim())
+    .eq("track_attendance", true)
+    .maybeSingle();
+  return data || null;
 }
 
 // ── Get all code/session check-in records for an event (excludes manual marks) ──

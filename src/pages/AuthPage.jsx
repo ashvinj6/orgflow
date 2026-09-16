@@ -303,8 +303,29 @@ export default function AuthPage({ onBack }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
 
+      <style>{`
+        @media (max-width: 780px) {
+          .og-auth-branding { display: none !important; }
+          .og-auth-mobile-header { display: flex !important; }
+          .og-auth-form-panel { padding: 76px 20px 32px !important; }
+        }
+      `}</style>
+
+      {/* ── Compact mobile header (branding panel replacement) ── */}
+      <div
+        className="og-auth-mobile-header"
+        style={{
+          display: "none", alignItems: "center", gap: 10,
+          position: "absolute", top: 20, left: 24, zIndex: 1,
+        }}
+      >
+        <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 30, height: 30, borderRadius: 7, objectFit: "cover" }} />
+        <span style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em" }}>OrgFlow</span>
+      </div>
+
       {/* ── Left branding panel ── */}
       <div
+        className="og-auth-branding"
         style={{
           width: 420, minHeight: "100vh", background: "#0f172a",
           display: "flex", flexDirection: "column", justifyContent: "space-between",
@@ -352,8 +373,9 @@ export default function AuthPage({ onBack }) {
 
       {/* ── Right form panel ── */}
       <div
+        className="og-auth-form-panel"
         style={{
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center",
           padding: "40px 32px", overflowY: "auto", position: "relative",
         }}
       >
@@ -438,7 +460,7 @@ export default function AuthPage({ onBack }) {
                   <p style={{ fontSize: 14, color: "#64748b", marginBottom: 28 }}>
                     Choose how you'll be using OrgFlow.
                   </p>
-                  <div style={{ display: "flex", gap: 12, marginBottom: 28 }}>
+                  <div style={{ display: "flex", gap: 12, marginBottom: 28, flexWrap: "wrap" }}>
                     <RoleCard
                       icon="🏛️" title="Organization"
                       description="I'm an officer or exec board member setting up or managing a club."
