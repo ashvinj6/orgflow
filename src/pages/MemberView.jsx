@@ -455,7 +455,7 @@ export function AutoCheckIn({ code, user, onDone }) {
       finish("success", result.alreadyCheckedIn
         ? `You're already checked in to ${event.title}.`
         : `You're checked in to ${event.title}.`);
-    })();
+    })().catch(() => finish("error", "We couldn't record your attendance. Please reopen the check-in link to try again."));
 
     return () => { cancelled = true; };
   }, [code]);

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import CopyCheckinLink from "../components/CopyCheckinLink";
 import { useEvents } from "../context/EventsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { Card, Button, Modal, FormField, Input, Select, Textarea, Badge } from "../components/UI";
@@ -471,11 +472,11 @@ export default function Events() {
                     </span>
                   )}
                   {e.track_attendance && e.attendance_code && (
-                    <CopyCodeButton code={e.attendance_code} />
+                    <><CopyCodeButton code={e.attendance_code} /><CopyCheckinLink code={e.attendance_code} /></>
                   )}
                   {e.track_attendance && e.attendance_code && (
                     <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>
-                      Share this code with members at the event
+                      Share the code or link with members at the event
                     </span>
                   )}
                 </div>

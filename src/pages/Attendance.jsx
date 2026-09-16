@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import QRCodeLib from "qrcode";
+import CopyCheckinLink from "../components/CopyCheckinLink";
+import { buildCheckinLink } from "../utils/checkinLink";
 import { useMembers } from "../context/MembersContext";
 import { useEvents } from "../context/EventsContext";
 import { useAuth } from "../context/AuthContext";
@@ -41,7 +43,7 @@ function QRCode({ code, size = 180 }) {
 
   useEffect(() => {
     let cancelled = false;
-    const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=${code}`;
+    const checkinUrl = buildCheckinLink(code);
     QRCodeLib.toDataURL(checkinUrl, { width: size, margin: 1, color: { dark: "#0f172a", light: "#ffffff" } })
       .then((url) => { if (!cancelled) setDataUrl(url); })
       .catch(() => { if (!cancelled) setDataUrl(null); });
@@ -202,7 +204,7 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
               {session.code}
             </div>
             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 18, lineHeight: 1.5 }}>
-              Display this code or the QR on a screen. Members enter it on their dashboard to check in.
+              Members can enter the code on their dashboard, scan the QR, or open the shared link. The QR and link check them in automatically after login.
             </p>
 
             {/* Actions */}
@@ -221,6 +223,7 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
               </button>
 
               {/* Regenerate with duration picker */}
+              <CopyCheckinLink code={session.code} disabled={expired} />
               <div style={{ display: "flex", gap: 0, border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
                 <select
                   value={duration}
@@ -373,7 +376,7 @@ function StaticCodePanel({ event }) {
             {event.attendance_code}
           </div>
           <p style={{ fontSize: 13, color: "#64748b", marginBottom: 18, lineHeight: 1.5 }}>
-            Display this code at the event. Members enter it on their dashboard to record attendance.
+            Share the code or link at the event. Members can enter the code on their dashboard or open the link to be marked present after login.
           </p>
           <button
             onClick={copyCode}
@@ -388,6 +391,7 @@ function StaticCodePanel({ event }) {
           >
             {copied ? "✓ Copied" : "Copy Code"}
           </button>
+          <CopyCheckinLink code={event.attendance_code} />
         </div>
       </div>
 

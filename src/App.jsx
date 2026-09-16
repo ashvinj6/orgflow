@@ -445,10 +445,13 @@ function AppRouter() {
   );
   const [showLanding, setShowLanding] = useState(!checkinCode);
 
-  // Strip the param once so a refresh (or a later manual navigation) doesn't re-trigger it.
-  useEffect(() => {
-    if (checkinCode) window.history.replaceState(null, "", window.location.pathname);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Keep the link intact through login and refresh until the member dismisses the result.
+  function finishCheckin() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("checkin");
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    window.location.reload();
+  }
 
   if (loading) {
     return (
@@ -467,7 +470,7 @@ function AppRouter() {
   // Reload so whichever dashboard is underneath (its attendance list is
   // loaded once on mount) picks up the row AutoCheckIn just inserted.
   const checkinOverlay = checkinCode && (
-    <AutoCheckIn code={checkinCode} user={user} onDone={() => window.location.reload()} />
+    <AutoCheckIn code={checkinCode} user={user} onDone={finishCheckin} />
   );
 
   if (user.isAdmin) {

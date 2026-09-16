@@ -115,6 +115,7 @@ export async function recordCheckIn({ sessionId, eventId, orgId, userId, userNam
     .select()
     .single();
 
+  if (error?.code === "23505") return { success: false, alreadyCheckedIn: true, error: "You've already checked in to this event." };
   if (error) return { success: false, error: error.message };
   return { success: true, record: data };
 }
