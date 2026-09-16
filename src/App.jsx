@@ -15,6 +15,7 @@ import LandingPage from "./pages/LandingPage";
 import AdminPortal from "./pages/AdminPortal";
 import Sidebar from "./components/Sidebar";
 import AdminPreviewBar from "./components/AdminPreviewBar";
+import useIsMobile from "./hooks/useIsMobile";
 import { MembersProvider } from "./context/MembersContext";
 import { GroupsProvider } from "./context/GroupsContext";
 import { EventsProvider } from "./context/EventsContext";
@@ -333,8 +334,9 @@ function AddOrgModal({ onClose }) {
 
 // ── Org Dashboard (exec view) ──
 function OrgDashboard() {
+  const isMobile = useIsMobile();
   const [currentPage, setCurrentPage] = useState("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
   const [showAddOrgModal, setShowAddOrgModal] = useState(false);
   const {
     user, activeOrg, newOrgCodes, adminPreview, exitAdminPreview,
@@ -342,6 +344,11 @@ function OrgDashboard() {
   } = useAuth();
   const PageComponent = PAGES[currentPage].component;
   const topOffset = adminPreview ? 40 : 0;
+
+  function handleNavigate(key) {
+    setCurrentPage(key);
+    if (isMobile) setSidebarOpen(false);
+  }
 
   return (
     <MembersProvider>
@@ -354,7 +361,7 @@ function OrgDashboard() {
             <Sidebar
               pages={PAGES}
               currentPage={currentPage}
-              onNavigate={setCurrentPage}
+              onNavigate={handleNavigate}
               open={sidebarOpen}
               onToggle={() => setSidebarOpen(!sidebarOpen)}
               onLogout={logout}
@@ -364,18 +371,36 @@ function OrgDashboard() {
               onAddOrg={adminPreview ? undefined : () => setShowAddOrgModal(true)}
               getOrgJoinCode={getOrgJoinCode}
               topOffset={topOffset}
+              isMobile={isMobile}
             />
+            {isMobile && !sidebarOpen && (
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open menu"
+                style={{
+                  position: "fixed", top: topOffset + 14, left: 14, zIndex: 90,
+                  width: 42, height: 42, borderRadius: 10, border: "none",
+                  background: "#0f172a", color: "#fff", fontSize: 18,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                }}
+              >
+                ☰
+              </button>
+            )}
             <main
               style={{
                 flex: 1,
-                marginLeft: sidebarOpen ? 240 : 64,
-                marginTop: topOffset,
+                minWidth: 0,
+                marginLeft: isMobile ? 0 : (sidebarOpen ? 240 : 64),
+                marginTop: isMobile ? topOffset + 60 : topOffset,
                 transition: "margin-left 0.3s ease",
-                padding: "32px 40px",
+                padding: isMobile ? "20px 16px" : "32px 40px",
                 maxWidth: 1200,
+                boxSizing: "border-box",
               }}
             >
-              <PageComponent onNavigate={setCurrentPage} />
+              <PageComponent onNavigate={handleNavigate} />
             </main>
           </div>
 

@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEvents } from "../context/EventsContext";
 import { useRequirements } from "../context/RequirementsContext";
 import { supabase } from "../lib/supabase";
+import useIsMobile from "../hooks/useIsMobile";
 import {
   getActiveSessionsForOrg, getSessionByCode,
   recordCheckIn, hasCheckedIn, formatCountdown,
@@ -111,7 +112,7 @@ function JoinOrgModal({ onClose }) {
 // ────────────────────────────────────────────
 function StatCard({ label, value, sub, color }) {
   return (
-    <div style={{ flex: 1, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px" }}>
+    <div style={{ flex: "1 1 150px", minWidth: 150, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: "20px 22px", boxSizing: "border-box" }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: 34, fontWeight: 800, color: color || "#0f172a", letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 5 }}>{sub}</div>}
@@ -476,6 +477,7 @@ function ActiveSessionBanner({ session, user, orgId, onCheckedIn }) {
 // Main Dashboard
 // ────────────────────────────────────────────
 export function MemberDashboard({ orgEntry, user }) {
+  const isMobile = useIsMobile();
   const { getEventsForOrg, addAttendee } = useEvents();
   const { getRequirementsForOrg, computeProgress } = useRequirements();
   const [orgEvents, setOrgEvents] = useState([]);
@@ -634,7 +636,7 @@ export function MemberDashboard({ orgEntry, user }) {
         const allMet = reqProgress && totalReqs > 0 && metCount === totalReqs;
 
         return (
-          <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
             <StatCard label="Events Attended" value={attendedCount} sub={`out of ${totalPast} past events`} color="#6366f1" />
             <StatCard label="Participation Rate" value={`${pct}%`} sub={pct >= 60 ? "On track" : "Below target"} color={pct >= 60 ? "#16a34a" : "#f97316"} />
             {reqProgress ? (
@@ -838,12 +840,13 @@ export function MemberDashboard({ orgEntry, user }) {
             <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>Organization Notes</div>
             <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>Announcements and updates from your officers</div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 0 }}>
             {orgNotes.map((n, i) => {
               const catColors = { "Event Learning": "#06b6d4", Reminder: "#f59e0b", General: "#6b7280" };
               const color = catColors[n.category] || "#6b7280";
+              const isLast = isMobile ? i === orgNotes.length - 1 : i >= orgNotes.length - (orgNotes.length % 2 === 0 ? 2 : 1);
               return (
-                <div key={n.id} style={{ padding: "16px 20px", borderBottom: i < orgNotes.length - 2 ? "1px solid #f8fafc" : "none", borderRight: i % 2 === 0 ? "1px solid #f8fafc" : "none" }}>
+                <div key={n.id} style={{ padding: "16px 20px", borderBottom: isLast ? "none" : "1px solid #f8fafc", borderRight: !isMobile && i % 2 === 0 ? "1px solid #f8fafc" : "none" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color, background: `${color}12`, border: `1px solid ${color}30`, padding: "2px 8px", borderRadius: 20, textTransform: "uppercase", letterSpacing: "0.04em" }}>
                       {n.category}
@@ -869,6 +872,7 @@ export function MemberDashboard({ orgEntry, user }) {
 // ────────────────────────────────────────────
 export default function MemberView() {
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [activeOrgIdx, setActiveOrgIdx] = useState(0);
 
@@ -879,12 +883,12 @@ export default function MemberView() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* ── Top nav ── */}
-      <div style={{ background: "#0f172a", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60, position: "sticky", top: 0, zIndex: 50 }}>
+      <div style={{ background: "#0f172a", padding: isMobile ? "10px 16px" : "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", minHeight: 60, position: "sticky", top: 0, zIndex: 50 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
           <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>OrgFlow</span>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
             onClick={() => setShowJoinModal(true)}
             style={{ padding: "6px 13px", borderRadius: 7, border: "1px solid #334155", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s ease" }}
@@ -893,9 +897,11 @@ export default function MemberView() {
           >
             + Join Org
           </button>
-          <span style={{ fontSize: 13, color: "#475569" }}>
-            <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 13, color: "#475569" }}>
+              <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
+            </span>
+          )}
           <button
             onClick={logout}
             style={{ padding: "6px 13px", borderRadius: 7, border: "1px solid #334155", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s ease" }}
@@ -907,7 +913,7 @@ export default function MemberView() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "36px 32px" }}>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 32px", boxSizing: "border-box" }}>
 
         {/* ── Page header ── */}
         <div style={{ marginBottom: 24 }}>
@@ -938,13 +944,13 @@ export default function MemberView() {
           <>
             {/* ── Org tabs (if multiple) ── */}
             {orgs.length > 1 && (
-              <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#f1f5f9", padding: 4, borderRadius: 10, width: "fit-content" }}>
+              <div style={{ display: "flex", gap: 6, marginBottom: 24, background: "#f1f5f9", padding: 4, borderRadius: 10, maxWidth: "100%", overflowX: "auto" }}>
                 {orgs.map((org, idx) => (
                   <button
                     key={org.orgId}
                     onClick={() => setActiveOrgIdx(idx)}
                     style={{
-                      padding: "8px 16px", borderRadius: 7, border: "none",
+                      padding: "8px 16px", borderRadius: 7, border: "none", flexShrink: 0,
                       fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: "pointer",
                       transition: "all 0.15s ease",
                       background: activeOrgIdx === idx ? "#fff" : "transparent",

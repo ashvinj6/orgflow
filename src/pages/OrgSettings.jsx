@@ -46,12 +46,13 @@ function CodeCard({ label, description, code, type, orgId, onRegenerate }) {
   return (
     <div
       style={{
-        flex: 1,
+        flex: "1 1 260px",
         background: "var(--bg-card, #fff)",
         border: "1px solid var(--border, #e2e8f0)",
         borderRadius: 14,
         padding: "24px",
         minWidth: 0,
+        boxSizing: "border-box",
       }}
     >
       {/* Label badge */}
@@ -330,7 +331,7 @@ export default function OrgSettings() {
         subtitle="Share these codes with the right people. Each code type grants different access."
       />
 
-      <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 32, flexWrap: "wrap" }}>
         <CodeCard
           label="Exec Join Code"
           description="Share with officers and exec board members. Grants full dashboard access."

@@ -104,7 +104,9 @@ function KpiCard({ label, value, sub, color, alert }) {
   return (
     <div
       style={{
-        flex: 1,
+        flex: "1 1 160px",
+        minWidth: 160,
+        boxSizing: "border-box",
         border: `1px solid ${alert ? "#fecaca" : "var(--border, #e2e8f0)"}`,
         borderRadius: 14, padding: "20px 22px",
         background: alert ? "#fff5f5" : "#fff",
@@ -267,7 +269,7 @@ export default function Dashboard({ onNavigate }) {
       </div>
 
       {/* ── KPI row ── */}
-      <div style={{ display: "flex", gap: 14, marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
         <KpiCard label="Total Members" value={members.length} sub={`${activeCount} active this semester`} />
         <KpiCard label="Events Completed" value={pastEvents.length} sub={`${futureEvents.length} upcoming`} color="#f97316" />
         <KpiCard label="Avg Participation" value={`${avgRate}%`} sub={`across all members`} color={avgRate >= 60 ? "#22c55e" : "#f59e0b"} />
@@ -287,14 +289,14 @@ export default function Dashboard({ onNavigate }) {
         </h2>
       </div>
 
-      <div style={{ display: "flex", gap: 16, marginBottom: 28 }}>
+      <div style={{ display: "flex", gap: 16, marginBottom: 28, flexWrap: "wrap" }}>
 
         {/* Event progress donut */}
         <div
           style={{
             background: "#fff", border: "1px solid var(--border, #e2e8f0)",
             borderRadius: 14, padding: "24px 28px",
-            display: "flex", gap: 32, alignItems: "center", flex: 1,
+            display: "flex", gap: 32, alignItems: "center", flex: "1 1 280px", minWidth: 0, flexWrap: "wrap",
           }}
         >
           <DonutChart
@@ -342,7 +344,7 @@ export default function Dashboard({ onNavigate }) {
           style={{
             background: "#fff", border: "1px solid var(--border, #e2e8f0)",
             borderRadius: 14, padding: "24px 28px",
-            display: "flex", gap: 32, alignItems: "center", flex: 1,
+            display: "flex", gap: 32, alignItems: "center", flex: "1 1 280px", minWidth: 0, flexWrap: "wrap",
           }}
         >
           <DonutChart
@@ -476,7 +478,7 @@ export default function Dashboard({ onNavigate }) {
             }}
           />
           {/* Sort */}
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {[
               { key: "rate-asc",  label: "Rate ↑" },
               { key: "rate-desc", label: "Rate ↓" },

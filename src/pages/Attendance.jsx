@@ -8,6 +8,7 @@ import {
   refreshSession, getEventCheckIns, formatCountdown,
 } from "../utils/checkin";
 import { supabase } from "../lib/supabase";
+import useIsMobile from "../hooks/useIsMobile";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -48,6 +49,7 @@ function QRCode({ code, size = 180 }) {
 
 // ── Active session panel ──
 function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
+  const isMobile = useIsMobile();
   const expiresAtMs = session.expires_at ? new Date(session.expires_at).getTime() : 0;
   const ms = useCountdown(expiresAtMs);
   const [duration, setDuration] = useState(15);
@@ -144,13 +146,13 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 16 }}>
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         {/* Code + QR card */}
         <div
           style={{
-            flex: 1, background: "#fff", border: "1px solid var(--border, #e2e8f0)",
+            flex: "1 1 280px", minWidth: 0, background: "#fff", border: "1px solid var(--border, #e2e8f0)",
             borderRadius: 16, padding: "28px 28px",
-            display: "flex", gap: 28, alignItems: "center",
+            display: "flex", gap: 28, alignItems: "center", flexWrap: "wrap",
             opacity: expired ? 0.5 : 1,
           }}
         >
@@ -160,13 +162,13 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
           </div>
 
           {/* Code + controls */}
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: "1 1 200px", minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
               Check-In Code
             </div>
             <div
               style={{
-                fontSize: 52, fontWeight: 900, letterSpacing: "0.18em",
+                fontSize: isMobile ? 34 : 52, fontWeight: 900, letterSpacing: isMobile ? "0.1em" : "0.18em",
                 color: expired ? "#94a3b8" : "#0f172a", fontFamily: "monospace",
                 lineHeight: 1, marginBottom: 12,
               }}
@@ -225,7 +227,7 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
         {/* Live check-ins */}
         <div
           style={{
-            width: 280, flexShrink: 0, background: "#fff",
+            width: isMobile ? "100%" : 280, flexShrink: 0, background: "#fff",
             border: "1px solid var(--border, #e2e8f0)", borderRadius: 16,
             overflow: "hidden", display: "flex", flexDirection: "column",
           }}
@@ -284,6 +286,7 @@ function ActiveSessionPanel({ session, orgId, onEnd, onRefresh }) {
 
 // ── Static code panel (for events with track_attendance: true) ──
 function StaticCodePanel({ event }) {
+  const isMobile = useIsMobile();
   const [copied, setCopied] = useState(false);
   const [checkIns, setCheckIns] = useState([]);
 
@@ -321,22 +324,22 @@ function StaticCodePanel({ event }) {
   }
 
   return (
-    <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
+    <div style={{ display: "flex", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
       {/* Code display card */}
       <div
         style={{
-          flex: 1, background: "#fff", border: "1px solid var(--border, #e2e8f0)",
+          flex: "1 1 280px", minWidth: 0, background: "#fff", border: "1px solid var(--border, #e2e8f0)",
           borderRadius: 16, padding: "28px 32px",
           display: "flex", gap: 28, alignItems: "center",
         }}
       >
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>
             Attendance Code
           </div>
           <div
             style={{
-              fontSize: 52, fontWeight: 900, letterSpacing: "0.18em",
+              fontSize: isMobile ? 34 : 52, fontWeight: 900, letterSpacing: isMobile ? "0.1em" : "0.18em",
               color: "#6366f1", fontFamily: "monospace",
               lineHeight: 1, marginBottom: 12,
             }}
@@ -365,7 +368,7 @@ function StaticCodePanel({ event }) {
       {/* Live check-ins roster */}
       <div
         style={{
-          width: 280, flexShrink: 0, background: "#fff",
+          width: isMobile ? "100%" : 280, flexShrink: 0, background: "#fff",
           border: "1px solid var(--border, #e2e8f0)", borderRadius: 16,
           overflow: "hidden", display: "flex", flexDirection: "column",
         }}
@@ -438,7 +441,7 @@ function StartSessionForm({ event, orgId, onStart }) {
         background: "#fff", border: "2px dashed #e2e8f0",
         borderRadius: 16, padding: "28px 32px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        marginBottom: 24, gap: 20,
+        marginBottom: 24, gap: 20, flexWrap: "wrap",
       }}
     >
       <div>
@@ -449,7 +452,7 @@ function StartSessionForm({ event, orgId, onStart }) {
           Generate a time-sensitive code + QR that members use to check in from their phones.
         </p>
       </div>
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Duration</div>
         <div style={{ display: "flex", border: "1.5px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
           {DURATIONS.map((d) => (
@@ -661,7 +664,8 @@ export default function Attendance() {
             {!isUpcoming ? "Event has ended — marks below are exec overrides" : "Click a row to toggle attendance"}
           </div>
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 480 }}>
           <thead>
             <tr style={{ borderBottom: "2px solid var(--border, #e2e8f0)" }}>
               <th style={{ padding: "12px 16px", width: 48, textAlign: "center" }}>
@@ -726,6 +730,7 @@ export default function Attendance() {
             })}
           </tbody>
         </table>
+        </div>
       </Card>
     </div>
   );

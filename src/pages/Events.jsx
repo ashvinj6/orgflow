@@ -254,7 +254,7 @@ function EventFormFields({ form, setForm, typeDropdown, setTypeDropdown, categor
           <div style={{ fontSize: 12, color: "#ef4444", marginTop: 4 }}>Date is required</div>
         )}
       </FormField>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
         <FormField label="Start Time">
           <TimePicker
             value={form.time}
@@ -279,7 +279,7 @@ function EventFormFields({ form, setForm, typeDropdown, setTypeDropdown, categor
 
       <AttendanceToggle value={form.trackAttendance} onChange={(v) => setForm((p) => ({ ...p, trackAttendance: v }))} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 4 }}>
         <FormField label="Requirement Category">
           <select
             value={form.requirementCategory}
@@ -407,7 +407,7 @@ export default function Events() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, color: "var(--text-primary, #0f172a)", letterSpacing: "-0.02em" }}>Events</h1>
           <p style={{ color: "var(--text-muted, #64748b)", marginTop: 4, fontSize: 14 }}>{events.length} total events</p>
@@ -416,7 +416,7 @@ export default function Events() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "var(--bg-card, #fff)", borderRadius: 10, padding: 4, width: "fit-content", border: "1px solid var(--border, #e2e8f0)" }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 24, background: "var(--bg-card, #fff)", borderRadius: 10, padding: 4, width: "fit-content", maxWidth: "100%", overflowX: "auto", border: "1px solid var(--border, #e2e8f0)" }}>
         {[
           { key: "upcoming", label: `Upcoming (${upcoming.length})`, activeColor: "#6366f1" },
           { key: "ongoing",  label: `Ongoing (${ongoing.length})`,   activeColor: "#22c55e" },
@@ -455,8 +455,8 @@ export default function Events() {
             ? { label: "Upcoming", color: "#6366f1", bg: "#eef2ff", border: "#a5b4fc" }
             : null;
           return (
-            <Card key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderLeft: state === "ongoing" ? "3px solid #22c55e" : undefined }}>
-              <div style={{ flex: 1 }}>
+            <Card key={e.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12, borderLeft: state === "ongoing" ? "3px solid #22c55e" : undefined }}>
+              <div style={{ flex: "1 1 220px", minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
                   <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>{e.title}</h3>
                   <Badge label={e.type} color={typeColors[e.type] || "#6b7280"} />
@@ -479,7 +479,7 @@ export default function Events() {
                     </span>
                   )}
                 </div>
-                <div style={{ display: "flex", gap: 24, fontSize: 13, color: "var(--text-muted, #64748b)" }}>
+                <div style={{ display: "flex", gap: 16, rowGap: 4, fontSize: 13, color: "var(--text-muted, #64748b)", flexWrap: "wrap" }}>
                   <span>📅 {formatDisplayDate(e.date)}</span>
                   {e.time && <span>🕐 {e.time}{e.end_time ? ` – ${e.end_time}` : ""}</span>}
                   {e.location && <span>📍 {e.location}</span>}

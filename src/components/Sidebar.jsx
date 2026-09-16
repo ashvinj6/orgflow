@@ -13,6 +13,7 @@ export default function Sidebar({
   onAddOrg,
   getOrgJoinCode,
   topOffset = 0,
+  isMobile = false,
 }) {
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
   const [copiedOrgId, setCopiedOrgId] = useState(null);
@@ -31,23 +32,40 @@ export default function Sidebar({
   }
 
   return (
-    <nav
-      style={{
-        position: "fixed",
-        top: topOffset,
-        left: 0,
-        height: `calc(100vh - ${topOffset}px)`,
-        width: open ? 240 : 64,
-        background: "var(--bg-sidebar, #0f172a)",
-        color: "var(--text-sidebar, #e2e8f0)",
-        transition: "width 0.3s ease",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        zIndex: 100,
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-      }}
-    >
+    <>
+      {/* ── Mobile backdrop: tap outside the drawer to close it ── */}
+      {isMobile && open && (
+        <div
+          onClick={onToggle}
+          style={{
+            position: "fixed",
+            top: topOffset,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 99,
+          }}
+        />
+      )}
+      <nav
+        style={{
+          position: "fixed",
+          top: topOffset,
+          left: 0,
+          height: `calc(100vh - ${topOffset}px)`,
+          width: isMobile ? 260 : (open ? 240 : 64),
+          transform: isMobile ? (open ? "translateX(0)" : "translateX(-100%)") : "none",
+          background: "var(--bg-sidebar, #0f172a)",
+          color: "var(--text-sidebar, #e2e8f0)",
+          transition: isMobile ? "transform 0.25s ease" : "width 0.3s ease",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          zIndex: 100,
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
       {/* ── Logo ── */}
       <div
         style={{
@@ -418,6 +436,7 @@ export default function Sidebar({
           </button>
         )}
       </div>
-    </nav>
+      </nav>
+    </>
   );
 }

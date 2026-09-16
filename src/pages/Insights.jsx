@@ -47,14 +47,14 @@ export default function Insights() {
       </div>
 
       {/* Summary Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 32 }}>
         <StatCard label="High Engagement" value={engagementBreakdown.High} color="#22c55e" sublabel={`${((engagementBreakdown.High / members.length) * 100).toFixed(0)}% of members`} />
         <StatCard label="Medium" value={engagementBreakdown.Medium} color="#f59e0b" sublabel={`${((engagementBreakdown.Medium / members.length) * 100).toFixed(0)}% of members`} />
         <StatCard label="Low" value={engagementBreakdown.Low} color="#ef4444" sublabel={`${((engagementBreakdown.Low / members.length) * 100).toFixed(0)}% of members`} />
         <StatCard label="Inactive" value={engagementBreakdown.Inactive} color="#6b7280" sublabel={`${((engagementBreakdown.Inactive / members.length) * 100).toFixed(0)}% of members`} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginBottom: 20 }}>
         {/* Attendance Trend Bar Chart */}
         <Card>
           <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>Attendance by Event</h3>
@@ -107,7 +107,8 @@ export default function Insights() {
       {/* Full Member Ranking */}
       <Card>
         <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 700, color: "var(--text-primary, #0f172a)" }}>Full Member Ranking</h3>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 560 }}>
           <thead>
             <tr style={{ borderBottom: "2px solid var(--border, #e2e8f0)" }}>
               {["#", "Name", "Committee", "Events Attended", "Rate", "Engagement"].map((h) => (
@@ -131,6 +132,7 @@ export default function Insights() {
             })}
           </tbody>
         </table>
+        </div>
       </Card>
     </div>
   );

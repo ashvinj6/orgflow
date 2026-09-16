@@ -74,7 +74,10 @@ export function SearchInput({ value, onChange, placeholder }) {
         border: "1px solid var(--border, #e2e8f0)",
         background: "var(--bg-card, #fff)",
         fontSize: 14,
-        width: 280,
+        flex: "1 1 200px",
+        minWidth: 0,
+        maxWidth: 280,
+        boxSizing: "border-box",
         outline: "none",
         color: "var(--text-primary, #0f172a)",
       }}

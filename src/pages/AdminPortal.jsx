@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
+import useIsMobile from "../hooks/useIsMobile";
 
 function formatDate(dateStr) {
   if (!dateStr) return "";
@@ -10,6 +11,7 @@ function formatDate(dateStr) {
 
 export default function AdminPortal() {
   const { user, logout, getAllOrgsForAdmin, startAdminPreview } = useAuth();
+  const isMobile = useIsMobile();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -30,7 +32,7 @@ export default function AdminPortal() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'DM Sans', sans-serif" }}>
       {/* ── Top nav ── */}
-      <div style={{ background: "#0f172a", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 60 }}>
+      <div style={{ background: "#0f172a", padding: isMobile ? "10px 16px" : "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", minHeight: 60 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/orgflow_logo.png" alt="OrgFlow" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover" }} />
           <span style={{ fontSize: 16, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>OrgFlow</span>
@@ -39,9 +41,11 @@ export default function AdminPortal() {
           </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ fontSize: 13, color: "#475569" }}>
-            <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 13, color: "#475569" }}>
+              <strong style={{ color: "#e2e8f0" }}>{user?.name}</strong>
+            </span>
+          )}
           <button
             onClick={logout}
             style={{ padding: "6px 13px", borderRadius: 7, border: "1px solid #334155", background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s ease" }}
@@ -53,7 +57,7 @@ export default function AdminPortal() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 960, margin: "0 auto", padding: "36px 32px" }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", padding: isMobile ? "20px 16px" : "36px 32px", boxSizing: "border-box" }}>
         <div style={{ marginBottom: 24 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", letterSpacing: "-0.02em", margin: 0, marginBottom: 4 }}>
             Admin Portal
@@ -88,6 +92,7 @@ export default function AdminPortal() {
                 style={{
                   background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14,
                   padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                  flexWrap: "wrap",
                 }}
               >
                 <div style={{ minWidth: 0 }}>
