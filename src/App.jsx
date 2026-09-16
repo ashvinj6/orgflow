@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BarChart2, Users, Calendar, Clock, CheckSquare, Lightbulb, NotebookPen, Settings, Layers } from "lucide-react";
 import Dashboard from "./pages/Dashboard";
 import Members from "./pages/Members";
@@ -10,7 +10,7 @@ import Insights from "./pages/Insights";
 import Notes from "./pages/Notes";
 import OrgSettings from "./pages/OrgSettings";
 import AuthPage from "./pages/AuthPage";
-import MemberView, { MemberDashboard } from "./pages/MemberView";
+import MemberView, { MemberDashboard, AutoCheckIn } from "./pages/MemberView";
 import LandingPage from "./pages/LandingPage";
 import AdminPortal from "./pages/AdminPortal";
 import Sidebar from "./components/Sidebar";
@@ -439,7 +439,16 @@ function AdminMemberPreview() {
 
 function AppRouter() {
   const { user, loading, adminPreview } = useAuth();
-  const [showLanding, setShowLanding] = useState(true);
+  // A scanned QR code lands here as ?checkin=CODE — see QRCode in Attendance.jsx.
+  const [checkinCode, setCheckinCode] = useState(
+    () => new URLSearchParams(window.location.search).get("checkin")
+  );
+  const [showLanding, setShowLanding] = useState(!checkinCode);
+
+  // Strip the param once so a refresh (or a later manual navigation) doesn't re-trigger it.
+  useEffect(() => {
+    if (checkinCode) window.history.replaceState(null, "", window.location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
     return (
@@ -454,9 +463,37 @@ function AppRouter() {
   if (!user && showLanding) return <LandingPage onGetStarted={() => setShowLanding(false)} />;
   if (!user) return <AuthPage onBack={() => setShowLanding(true)} />;
   if (adminPreview) return adminPreview.viewAs === "exec" ? <OrgDashboard /> : <AdminMemberPreview />;
-  if (user.isAdmin) return <AdminPortal />;
-  if (user.userType === "member") return <MemberView />;
-  return <OrgDashboard />;
+
+  // Reload so whichever dashboard is underneath (its attendance list is
+  // loaded once on mount) picks up the row AutoCheckIn just inserted.
+  const checkinOverlay = checkinCode && (
+    <AutoCheckIn code={checkinCode} user={user} onDone={() => window.location.reload()} />
+  );
+
+  if (user.isAdmin) {
+    return (
+      <>
+        <AdminPortal />
+        {checkinOverlay}
+      </>
+    );
+  }
+
+  if (user.userType === "member") {
+    return (
+      <>
+        <MemberView />
+        {checkinOverlay}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <OrgDashboard />
+      {checkinOverlay}
+    </>
+  );
 }
 
 export default function App() {

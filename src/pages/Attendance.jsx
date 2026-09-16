@@ -32,9 +32,12 @@ function useCountdown(expiresAt) {
 }
 
 // ── QR code image using api.qrserver.com ──
+// Encodes a link (not plain text) so scanning with a phone's camera opens
+// OrgFlow directly and can check the member in automatically — see the
+// `checkin` URL param handling in App.jsx.
 function QRCode({ code, size = 180 }) {
-  const data = encodeURIComponent(`OrgFlow Check-In Code: ${code}`);
-  const src  = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${data}&margin=10`;
+  const checkinUrl = `${window.location.origin}${window.location.pathname}?checkin=${code}`;
+  const src = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(checkinUrl)}&margin=10`;
   return (
     <img
       src={src}

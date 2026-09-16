@@ -5,7 +5,7 @@ import { useRequirements } from "../context/RequirementsContext";
 import { supabase } from "../lib/supabase";
 import useIsMobile from "../hooks/useIsMobile";
 import {
-  getActiveSessionsForOrg, getSessionByCode,
+  getActiveSessionsForOrg, getSessionByCode, getEventByCode,
   recordCheckIn, hasCheckedIn, formatCountdown,
 } from "../utils/checkin";
 import { getEventState, isLateToday } from "../utils/eventState";
@@ -397,6 +397,104 @@ function CheckInModal({ prefillCode, user, orgId, onClose, onSuccess }) {
             Check In
           </button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────
+// Auto check-in — runs when a member scans an event's QR code.
+// The QR encodes a link with a ?checkin=CODE param (see QRCode in
+// Attendance.jsx); this resolves that code against either a live
+// check-in session or a static event attendance code, then records
+// the same attendance_records row a manual code entry would.
+// ────────────────────────────────────────────
+export function AutoCheckIn({ code, user, onDone }) {
+  const [status, setStatus] = useState("checking"); // checking | success | error
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function finish(nextStatus, msg) {
+      if (!cancelled) { setStatus(nextStatus); setMessage(msg); }
+    }
+
+    (async () => {
+      // Try a live, time-limited check-in session first.
+      const session = await getSessionByCode(code);
+      if (session) {
+        if (!user.orgs?.find((o) => o.orgId === session.org_id)) {
+          finish("error", "You're not a member of the organization running this event.");
+          return;
+        }
+        const result = await recordCheckIn({
+          eventId: session.event_id, orgId: session.org_id,
+          userId: user.id, userName: user.name, userEmail: user.email,
+        });
+        if (!result.success && !result.alreadyCheckedIn) { finish("error", result.error); return; }
+        finish("success", result.alreadyCheckedIn
+          ? `You're already checked in to ${session.event_title}.`
+          : `You're checked in to ${session.event_title}.`);
+        return;
+      }
+
+      // Fall back to a permanent, per-event attendance code.
+      const event = await getEventByCode(code);
+      if (!event) { finish("error", "This check-in code is invalid or has expired."); return; }
+      if (!user.orgs?.find((o) => o.orgId === event.org_id)) {
+        finish("error", "You're not a member of the organization running this event.");
+        return;
+      }
+      const result = await recordCheckIn({
+        eventId: event.id, orgId: event.org_id,
+        userId: user.id, userName: user.name, userEmail: user.email,
+        source: "code",
+      });
+      if (!result.success && !result.alreadyCheckedIn) { finish("error", result.error); return; }
+      finish("success", result.alreadyCheckedIn
+        ? `You're already checked in to ${event.title}.`
+        : `You're checked in to ${event.title}.`);
+    })();
+
+    return () => { cancelled = true; };
+  }, [code]);
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 500, fontFamily: "'DM Sans', sans-serif", padding: 16 }}>
+      <div style={{ background: "#fff", borderRadius: 18, padding: "36px 32px", width: 380, maxWidth: "92vw", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.18)", boxSizing: "border-box" }}>
+        {status === "checking" && (
+          <>
+            <div style={{ fontSize: 32, marginBottom: 14 }}>⏳</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>Checking you in…</div>
+          </>
+        )}
+        {status === "success" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>✅</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>You're checked in!</div>
+            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>{message}</p>
+            <button
+              onClick={onDone}
+              style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: "#22c55e", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Done
+            </button>
+          </>
+        )}
+        {status === "error" && (
+          <>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>⚠️</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>Couldn't check you in</div>
+            <p style={{ fontSize: 14, color: "#64748b", marginBottom: 24 }}>{message}</p>
+            <button
+              onClick={onDone}
+              style={{ width: "100%", padding: "12px", borderRadius: 8, border: "1.5px solid #e2e8f0", background: "transparent", color: "#0f172a", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Close
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
